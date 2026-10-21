@@ -1,0 +1,99 @@
+:host {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: calc(var(--space) * 1.5);
+  height: 2rem;
+  padding: 0 calc(var(--space) * 2.5);
+  border: 1px solid transparent;
+  border-radius: var(--radius-lg);
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font: inherit;
+  font-size: var(--text-sm);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background-color var(--transition),
+    color var(--transition),
+    opacity var(--transition);
+}
+
+:host(:hover) {
+  background: color-mix(in oklch, var(--primary) 85%, transparent);
+}
+
+:host(:active) {
+  transform: translateY(1px);
+}
+
+:host(:disabled),
+:host([aria-disabled='true']) {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+/* ── Variantes ── */
+:host([data-variant='secondary']) {
+  background: var(--secondary);
+  color: var(--secondary-foreground);
+}
+:host([data-variant='secondary']:hover) {
+  background: color-mix(in oklch, var(--secondary), var(--foreground) 6%);
+}
+
+:host([data-variant='outline']) {
+  border-color: var(--border);
+  background: var(--background);
+  color: var(--foreground);
+}
+:host([data-variant='outline']:hover) {
+  background: var(--muted);
+}
+
+:host([data-variant='ghost']) {
+  background: transparent;
+  color: inherit;
+}
+:host([data-variant='ghost']:hover) {
+  background: var(--muted);
+  color: var(--foreground);
+}
+
+:host([data-variant='destructive']) {
+  background: color-mix(in oklch, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+}
+:host([data-variant='destructive']:hover) {
+  background: color-mix(in oklch, var(--destructive) 20%, transparent);
+}
+
+:host([data-variant='link']) {
+  background: transparent;
+  color: var(--primary);
+  text-underline-offset: 4px;
+}
+:host([data-variant='link']:hover) {
+  text-decoration: underline;
+}
+
+/* ── Tamanhos ── */
+:host([data-size='sm']) {
+  height: 1.75rem;
+  font-size: 0.8rem;
+}
+
+:host([data-size='lg']) {
+  height: 2.25rem;
+  padding: 0 calc(var(--space) * 3);
+}
+
+:host([data-size='icon']) {
+  width: 2rem;
+  padding: 0;
+}

@@ -1,0 +1,144 @@
+<section class="pagina">
+  <header class="titulo-pagina">
+    <h1>Produtos</h1>
+    <p>Pesquise por código, nome ou categoria.</p>
+  </header>
+
+  <!-- Form nativo, sem @angular/forms (~50 kB a menos nesta tela). O aoPesquisar() cancela o
+       envio padrão: sem isso, o navegador recarregaria a página. -->
+  <form role="search" class="filtros" (submit)="aoPesquisar($event)">
+    <div class="campo campo-busca">
+      <label ui-label for="busca">Pesquisar</label>
+      <div ui-input-group>
+        <span ui-input-group-addon>
+          <ui-icon name="search" />
+        </span>
+        <!-- [value] mantém o campo igual à URL (ex.: "voltar" do navegador ou "Limpar"). -->
+        <input
+          ui-input-group-input
+          id="busca"
+          name="termo"
+          type="search"
+          placeholder="Ex.: HO-1001, banana, Bebidas"
+          autocomplete="off"
+          [value]="filtros.filtros().termo"
+        />
+      </div>
+    </div>
+
+    <div class="campo campo-status">
+      <label ui-label for="status">Status</label>
+      <select ui-select id="status" (change)="aoMudarStatus($event)">
+        <option value="todos" [selected]="filtros.filtros().status === 'todos'">Todos</option>
+        @for (opcao of opcoesStatus; track opcao) {
+          <option [value]="opcao" [selected]="filtros.filtros().status === opcao">
+            {{ rotuloStatus[opcao] }}
+          </option>
+        }
+      </select>
+    </div>
+
+    <div class="botoes">
+      <button ui-button type="submit">
+        <ui-icon name="search" />
+        Pesquisar
+      </button>
+      @if (filtros.temFiltro()) {
+        <button ui-button variant="ghost" type="button" (click)="filtros.limpar()">Limpar</button>
+      }
+    </div>
+  </form>
+
+  @if (produtos.isError()) {
+    <div ui-alert variant="destructive">
+      <ui-icon name="circle-alert" />
+      <h2 ui-alert-title>Não foi possível carregar os produtos</h2>
+      <div ui-alert-description>
+        <p>Verifique sua conexão e tente de novo.</p>
+        <button
+          ui-button
+          variant="outline"
+          size="sm"
+          type="button"
+          class="tentar-de-novo"
+          (click)="produtos.refetch()"
+        >
+          Tentar de novo
+        </button>
+      </div>
+    </div>
+  } @else if (produtos.isPending()) {
+    <!-- Primeira carga desta busca: ainda não há nada no cache para mostrar. -->
+    <div class="carregando" aria-busy="true" aria-label="Carregando produtos">
+      @for (linha of linhasCarregando; track linha) {
+        <ui-skeleton class="linha-carregando" />
+      }
+    </div>
+  } @else if (produtos.data()?.length === 0) {
+    <div ui-empty class="vazio">
+      <div ui-empty-header>
+        <div ui-empty-media variant="icon">
+          <ui-icon name="search-x" />
+        </div>
+        <div ui-empty-title>Nenhum produto encontrado</div>
+        <div ui-empty-description>Tente outro termo ou remova os filtros.</div>
+      </div>
+      <div ui-empty-content>
+        <button ui-button variant="outline" type="button" (click)="filtros.limpar()">
+          Limpar filtros
+        </button>
+      </div>
+    </div>
+  } @else {
+    <div class="contagem" aria-live="polite">
+      {{ produtos.data()?.length }} produto(s)
+      <!-- isFetching: buscando em segundo plano, com dados (antigos ou do cache) já na tela. -->
+      @if (produtos.isFetching()) {
+        <ui-spinner aria-label="Atualizando" />
+        <span>Atualizando…</span>
+      }
+    </div>
+
+    <div ui-table-container>
+      <table ui-table>
+        <thead ui-thead>
+          <tr ui-tr>
+            <th ui-th>Código</th>
+            <th ui-th>Nome</th>
+            <th ui-th>Categoria</th>
+            <th ui-th>Validade</th>
+            <th ui-th class="direita">Preço</th>
+            <th ui-th>Status</th>
+          </tr>
+        </thead>
+        <!-- isPlaceholderData: a tabela ainda é a da busca anterior (keepPreviousData). -->
+        <tbody ui-tbody [class.desatualizada]="produtos.isPlaceholderData()">
+          @for (produto of produtos.data(); track produto.codigo) {
+            <tr ui-tr>
+              <td ui-td class="destaque">
+                <!-- Ao passar o mouse (ou focar pelo teclado), já busca o detalhe para o cache. -->
+                <a
+                  class="link-codigo"
+                  [routerLink]="['/produtos', produto.codigo]"
+                  (mouseenter)="prefetch(produto.codigo)"
+                  (focus)="prefetch(produto.codigo)"
+                >
+                  {{ produto.codigo }}
+                </a>
+              </td>
+              <td ui-td>{{ produto.nome }}</td>
+              <td ui-td>{{ produto.categoria }}</td>
+              <td ui-td class="sem-quebra">
+                {{ produto.validade | date: 'dd/MM/yyyy' : 'UTC' }}
+              </td>
+              <td ui-td class="direita valor">{{ produto.preco | currency: 'BRL' }}</td>
+              <td ui-td>
+                <app-status-produto-badge [status]="produto.status" />
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</section>

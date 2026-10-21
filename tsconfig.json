@@ -1,0 +1,39 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "noImplicitOverride": true,
+    "noPropertyAccessFromIndexSignature": true,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "ES2022",
+    "module": "preserve",
+    "paths": {
+      "@supermercado/ui/*": ["./projects/ui/*/src/index.ts"],
+      "@core/*": ["./projects/portal/src/app/core/*"],
+      "@shared/*": ["./projects/portal/src/app/shared/*"],
+      "@features/*": ["./projects/portal/src/app/features/*"],
+      "@env/*": ["./projects/portal/src/environments/*"],
+      "@testing/*": ["./projects/portal/src/testing/*"]
+    },
+    "strict": true
+  },
+  "angularCompilerOptions": {
+    "enableI18nLegacyMessageIdFormat": false,
+    "strictInjectionParameters": true,
+    "strictInputAccessModifiers": true,
+    "strictTemplates": true,
+    "typeCheckHostBindings": true
+  },
+  "files": [],
+  "references": [
+    { "path": "./projects/portal/tsconfig.app.json" },
+    { "path": "./projects/portal/tsconfig.spec.json" },
+    { "path": "./projects/ui/tsconfig.lib.json" },
+    { "path": "./projects/ui/tsconfig.spec.json" },
+    { "path": "./projects/storybook/.storybook/tsconfig.json" }
+  ]
+}

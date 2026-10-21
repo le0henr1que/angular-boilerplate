@@ -1,0 +1,3 @@
+// Setup compartilhado pelos testes de todos os projetos (ver "setupFiles" no angular.json).
+// Adiciona matchers de DOM ao expect: toHaveClass, toBeVisible, toHaveAttribute, toBeDisabled…
+import '@testing-library/jest-dom/vitest';

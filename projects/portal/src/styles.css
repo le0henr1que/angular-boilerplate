@@ -1,0 +1,68 @@
+/* Tema da biblioteca (cores, tipografia, claro/escuro). Ver projects/ui/styles/supermercado.css. */
+@import '../../ui/styles/supermercado.css';
+
+/*
+ * Layout comum das páginas do portal. Estilo específico de cada tela fica no próprio
+ * componente (styles / styleUrl); aqui só o que se repete em todas.
+ */
+.pagina {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.pagina.estreita {
+  max-width: 48rem;
+}
+
+.titulo-pagina h1 {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+/*
+ * Carregamento global: tela cheia com um spinner, do primeiro byte até a 1ª tela pronta (e na
+ * ida para o login da Microsoft). Usado no index.html (antes do Angular) e no App (depois),
+ * com o mesmo HTML: a troca de um pelo outro é invisível. Só CSS, sem depender do Angular.
+ */
+.carregamento-global {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  background: var(--background);
+  color: var(--muted-foreground);
+}
+
+.carregamento-global-spinner {
+  width: 2rem;
+  height: 2rem;
+  border: 3px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  opacity: 0.7;
+  animation: carregamento-global-girar 0.8s linear infinite;
+}
+
+@keyframes carregamento-global-girar {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carregamento-global-spinner {
+    animation-duration: 2.4s;
+  }
+}
+
+.titulo-pagina p {
+  margin-top: 0.25rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
