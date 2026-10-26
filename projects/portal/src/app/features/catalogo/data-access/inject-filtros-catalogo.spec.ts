@@ -25,7 +25,9 @@ describe('injectFiltrosCatalogo', () => {
   afterEach(() => vi.useRealTimers());
 
   it('lê filtros e página da URL', async () => {
-    const { hook } = await abrir('/catalogo?q=cafe&categoria=Bebidas&estoqueBaixo=true&pagina=3&porPagina=20');
+    const { hook } = await abrir(
+      '/catalogo?q=cafe&categoria=Bebidas&estoqueBaixo=true&pagina=3&porPagina=20',
+    );
     expect(hook.filtros()).toEqual({
       termo: 'cafe',
       categoria: 'Bebidas',

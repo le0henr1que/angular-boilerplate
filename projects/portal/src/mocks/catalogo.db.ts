@@ -95,6 +95,14 @@ const FORNECEDORES: Record<CategoriaCatalogo, ItemCatalogo['fornecedor'][]> = {
   ],
 };
 
+/** Uns 1/3 dos itens ficam no mínimo ou abaixo, para o filtro "estoque baixo" ter resultado. */
+const ITENS_COM_ESTOQUE_BAIXO_A_CADA = 3;
+
+function quantidadeEmEstoque(indice: number, semente: number, minimo: number): number {
+  if (indice % ITENS_COM_ESTOQUE_BAIXO_A_CADA === 0) return minimo - (semente % minimo);
+  return minimo + ((semente * 13) % 150);
+}
+
 export const CATALOGO_DB: ItemCatalogo[] = CATEGORIAS_CATALOGO.flatMap((categoria, c) =>
   PRODUTOS[categoria].map((nome, i) => {
     const semente = c * 31 + i * 7;
@@ -106,11 +114,7 @@ export const CATALOGO_DB: ItemCatalogo[] = CATEGORIAS_CATALOGO.flatMap((categori
       preco: Math.round((2 + ((semente * 37) % 2800) / 100) * 100) / 100,
       categoria: { id: c + 1, nome: categoria },
       fornecedor: fornecedores[i % fornecedores.length],
-      estoque: {
-        // Uns 1/3 dos itens ficam no mínimo ou abaixo, para o filtro "estoque baixo" ter resultado.
-        quantidade: i % 3 === 0 ? minimo - (semente % minimo) : minimo + ((semente * 13) % 150),
-        minimo,
-      },
+      estoque: { quantidade: quantidadeEmEstoque(i, semente, minimo), minimo },
     };
   }),
 ).map((item, indice) => ({ ...item, id: indice + 1 }));

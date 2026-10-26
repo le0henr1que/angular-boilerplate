@@ -1,24 +1,47 @@
 import { computed, DestroyRef, inject, linkedSignal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { ActivatedRoute, Router } from '@angular/router';
+import { ActivatedRoute, type Params, Router } from '@angular/router';
 import {
-  CATEGORIAS_CATALOGO,
-  type CategoriaCatalogo,
   FILTROS_CATALOGO_VAZIOS,
+  type FiltroCategoria,
   type FiltrosCatalogo,
-  OPCOES_POR_PAGINA,
+  filtrosIguais,
+  PARAM_LIGADO,
+  PARAMS_CATALOGO,
+  paraFiltroCategoria,
+  paraPagina,
+  paraPorPagina,
+  PRIMEIRA_PAGINA,
   type PorPagina,
+  temFiltroAtivo,
+  TODAS_CATEGORIAS,
 } from '../models/item-catalogo.model';
 
 /** Espera depois da última tecla antes de pesquisar. */
 const DEBOUNCE_MS = 300;
 
-const iguais = (a: FiltrosCatalogo, b: FiltrosCatalogo) =>
-  a.termo === b.termo &&
-  a.categoria === b.categoria &&
-  a.estoqueBaixo === b.estoqueBaixo &&
-  a.pagina === b.pagina &&
-  a.porPagina === b.porPagina;
+/**
+ * Filtros → query params da URL. Só entra o que difere do padrão; o resto vai como `null`,
+ * que faz o Router remover o parâmetro e deixa a URL limpa.
+ */
+function paraQueryParams(filtros: FiltrosCatalogo): Params {
+  const params: Params = {
+    [PARAMS_CATALOGO.termo]: null,
+    [PARAMS_CATALOGO.categoria]: null,
+    [PARAMS_CATALOGO.estoqueBaixo]: null,
+    [PARAMS_CATALOGO.pagina]: null,
+    [PARAMS_CATALOGO.porPagina]: null,
+  };
+  const termo = filtros.termo.trim();
+  if (termo) params[PARAMS_CATALOGO.termo] = termo;
+  if (filtros.categoria !== TODAS_CATEGORIAS) params[PARAMS_CATALOGO.categoria] = filtros.categoria;
+  if (filtros.estoqueBaixo) params[PARAMS_CATALOGO.estoqueBaixo] = PARAM_LIGADO;
+  if (filtros.pagina > PRIMEIRA_PAGINA) params[PARAMS_CATALOGO.pagina] = filtros.pagina;
+  if (filtros.porPagina !== FILTROS_CATALOGO_VAZIOS.porPagina) {
+    params[PARAMS_CATALOGO.porPagina] = filtros.porPagina;
+  }
+  return params;
+}
 
 /**
  * "Hook" de filtros e paginação do catálogo — o equivalente a um useFiltrosCatalogo() no React.
@@ -43,23 +66,14 @@ export function injectFiltrosCatalogo() {
 
   /** Filtros aplicados, lidos da URL. Valores inválidos digitados na URL viram o padrão. */
   const filtros = computed<FiltrosCatalogo>(
-    () => {
-      const categoria = params().get('categoria') ?? '';
-      const pagina = Number(params().get('pagina'));
-      const porPagina = Number(params().get('porPagina'));
-      return {
-        termo: params().get('q') ?? '',
-        categoria: CATEGORIAS_CATALOGO.includes(categoria as CategoriaCatalogo)
-          ? (categoria as CategoriaCatalogo)
-          : '',
-        estoqueBaixo: params().get('estoqueBaixo') === 'true',
-        pagina: Number.isInteger(pagina) && pagina > 1 ? pagina : 1,
-        porPagina: OPCOES_POR_PAGINA.includes(porPagina as PorPagina)
-          ? (porPagina as PorPagina)
-          : FILTROS_CATALOGO_VAZIOS.porPagina,
-      };
-    },
-    { equal: iguais },
+    () => ({
+      termo: params().get(PARAMS_CATALOGO.termo) ?? FILTROS_CATALOGO_VAZIOS.termo,
+      categoria: paraFiltroCategoria(params().get(PARAMS_CATALOGO.categoria)),
+      estoqueBaixo: params().get(PARAMS_CATALOGO.estoqueBaixo) === PARAM_LIGADO,
+      pagina: paraPagina(params().get(PARAMS_CATALOGO.pagina)),
+      porPagina: paraPorPagina(params().get(PARAMS_CATALOGO.porPagina)),
+    }),
+    { equal: filtrosIguais },
   );
 
   /**
@@ -68,29 +82,22 @@ export function injectFiltrosCatalogo() {
    */
   const termoDigitado = linkedSignal<string, string>({
     source: () => filtros().termo,
-    computation: (termoDaUrl, anterior) =>
-      anterior && anterior.value.trim() === termoDaUrl ? anterior.value : termoDaUrl,
+    computation: (termoDaUrl, anterior) => {
+      if (anterior && anterior.value.trim() === termoDaUrl) return anterior.value;
+      return termoDaUrl;
+    },
   });
 
   let espera: ReturnType<typeof setTimeout> | undefined;
   const cancelarEspera = () => clearTimeout(espera);
   inject(DestroyRef).onDestroy(cancelarEspera);
 
-  /** Grava na URL. Sem `pagina` nas mudanças, volta para a 1 (o resultado mudou). */
+  /** Grava na URL. Sem `pagina` nas mudanças, volta para a 1ª (o resultado mudou). */
   function aplicar(mudancas: Partial<FiltrosCatalogo>, substituirHistorico = false) {
-    const proximo = { ...filtros(), pagina: 1, ...mudancas };
     router.navigate([], {
       relativeTo: route,
       replaceUrl: substituirHistorico,
-      // null remove o parâmetro, para a URL ficar limpa com os valores padrão.
-      queryParams: {
-        q: proximo.termo.trim() || null,
-        categoria: proximo.categoria || null,
-        estoqueBaixo: proximo.estoqueBaixo ? 'true' : null,
-        pagina: proximo.pagina > 1 ? proximo.pagina : null,
-        porPagina:
-          proximo.porPagina === FILTROS_CATALOGO_VAZIOS.porPagina ? null : proximo.porPagina,
-      },
+      queryParams: paraQueryParams({ ...filtros(), pagina: PRIMEIRA_PAGINA, ...mudancas }),
     });
   }
 
@@ -99,10 +106,7 @@ export function injectFiltrosCatalogo() {
     filtros,
     /** Texto do campo de busca (signal); pode estar à frente da URL enquanto o debounce corre. */
     termoDigitado: termoDigitado.asReadonly(),
-    temFiltro: computed(() => {
-      const f = filtros();
-      return f.termo !== '' || f.categoria !== '' || f.estoqueBaixo;
-    }),
+    temFiltro: computed(() => temFiltroAtivo(filtros())),
 
     /** Busca enquanto digita, com debounce. */
     digitar(texto: string) {
@@ -115,9 +119,9 @@ export function injectFiltrosCatalogo() {
       cancelarEspera();
       aplicar({ termo: termoDigitado() });
     },
-    filtrarPorCategoria: (categoria: FiltrosCatalogo['categoria']) => aplicar({ categoria }),
+    filtrarPorCategoria: (categoria: FiltroCategoria) => aplicar({ categoria }),
     filtrarEstoqueBaixo: (estoqueBaixo: boolean) => aplicar({ estoqueBaixo }),
-    irParaPagina: (pagina: number) => aplicar({ pagina: Math.max(1, pagina) }),
+    irParaPagina: (pagina: number) => aplicar({ pagina: Math.max(PRIMEIRA_PAGINA, pagina) }),
     mudarPorPagina: (porPagina: PorPagina) => aplicar({ porPagina }),
     limpar() {
       cancelarEspera();

@@ -2,7 +2,14 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
 import { APP_CONFIG } from '@core/config/app-config';
 import { type Observable } from 'rxjs';
-import { type FiltrosCatalogo, type PaginaCatalogo } from '../models/item-catalogo.model';
+import {
+  CATALOGO_ENDPOINT,
+  type FiltrosCatalogo,
+  type PaginaCatalogo,
+  PARAM_LIGADO,
+  PARAMS_CATALOGO,
+  TODAS_CATEGORIAS,
+} from '../models/item-catalogo.model';
 
 /**
  * Só fala com o servidor. Em desenvolvimento (mockApi: true) quem responde é a API simulada
@@ -16,16 +23,18 @@ import { type FiltrosCatalogo, type PaginaCatalogo } from '../models/item-catalo
 @Injectable({ providedIn: 'root' })
 export class CatalogoService {
   private readonly http = inject(HttpClient);
-  private readonly url = `${inject(APP_CONFIG).apiUrl}/catalogo`;
+  private readonly url = `${inject(APP_CONFIG).apiUrl}${CATALOGO_ENDPOINT}`;
 
   listar(filtros: FiltrosCatalogo): Observable<PaginaCatalogo> {
     let params = new HttpParams()
-      .set('pagina', filtros.pagina)
-      .set('porPagina', filtros.porPagina);
+      .set(PARAMS_CATALOGO.pagina, filtros.pagina)
+      .set(PARAMS_CATALOGO.porPagina, filtros.porPagina);
     const termo = filtros.termo.trim();
-    if (termo) params = params.set('q', termo);
-    if (filtros.categoria) params = params.set('categoria', filtros.categoria);
-    if (filtros.estoqueBaixo) params = params.set('estoqueBaixo', true);
+    if (termo) params = params.set(PARAMS_CATALOGO.termo, termo);
+    if (filtros.categoria !== TODAS_CATEGORIAS) {
+      params = params.set(PARAMS_CATALOGO.categoria, filtros.categoria);
+    }
+    if (filtros.estoqueBaixo) params = params.set(PARAMS_CATALOGO.estoqueBaixo, PARAM_LIGADO);
     return this.http.get<PaginaCatalogo>(this.url, { params });
   }
 }

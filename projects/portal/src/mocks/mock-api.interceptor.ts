@@ -1,8 +1,21 @@
-import { HttpErrorResponse, type HttpInterceptorFn, HttpResponse } from '@angular/common/http';
+import {
+  HttpErrorResponse,
+  type HttpInterceptorFn,
+  type HttpParams,
+  HttpResponse,
+} from '@angular/common/http';
 import { inject } from '@angular/core';
 import { APP_CONFIG } from '@core/config/app-config';
 import { Logger } from '@core/logging/logger';
-import { type PaginaCatalogo } from '@features/catalogo';
+import {
+  CATALOGO_ENDPOINT,
+  estaComEstoqueBaixo,
+  FILTROS_CATALOGO_VAZIOS,
+  type PaginaCatalogo,
+  PARAM_LIGADO,
+  PARAMS_CATALOGO,
+  PRIMEIRA_PAGINA,
+} from '@features/catalogo';
 import { STATUS_PRODUTO, type StatusProduto } from '@features/produtos';
 import { delay, of, throwError } from 'rxjs';
 import { CATALOGO_DB } from './catalogo.db';
@@ -11,6 +24,9 @@ import { lerSessaoMock } from './sessao-mock';
 
 /** Latência simulada, para os estados de carregamento e o efeito do cache ficarem visíveis. */
 const LATENCIA_MS = 800;
+
+/** Teto de itens por página que a API aceita (o front só usa OPCOES_POR_PAGINA). */
+const POR_PAGINA_MAXIMO = 100;
 
 /** Remove acentos e caixa: "Maçã" e "maca" encontram o mesmo produto. */
 const normalizar = (texto: string) =>
@@ -22,12 +38,51 @@ const normalizar = (texto: string) =>
 const limitar = (valor: number, minimo: number, maximo: number) =>
   Math.min(Math.max(Math.trunc(valor), minimo), maximo);
 
-const responder =<T>(body: T) =>
+const responder = <T>(body: T) =>
   of(new HttpResponse({ status: 200, body })).pipe(delay(LATENCIA_MS));
 const naoEncontrado = (url: string) =>
   throwError(() => new HttpErrorResponse({ status: 404, statusText: 'Not Found', url })).pipe(
     delay(LATENCIA_MS),
   );
+
+/** Número de um parâmetro; ausente, zero ou não numérico vira o padrão. */
+function numeroOuPadrao(valor: string | null, padrao: number): number {
+  const numero = Number(valor);
+  if (Number.isNaN(numero) || numero === 0) return padrao;
+  return numero;
+}
+
+/** GET /catalogo: filtra e pagina NO SERVIDOR, como a API real; o front só recebe a página pedida. */
+function listarCatalogo(params: HttpParams): PaginaCatalogo {
+  const termo = normalizar(params.get(PARAMS_CATALOGO.termo) ?? FILTROS_CATALOGO_VAZIOS.termo);
+  const categoria = params.get(PARAMS_CATALOGO.categoria);
+  const estoqueBaixo = params.get(PARAMS_CATALOGO.estoqueBaixo) === PARAM_LIGADO;
+  const filtrados = CATALOGO_DB.filter(
+    (item) =>
+      (!termo || normalizar(`${item.nome} ${item.fornecedor.nome}`).includes(termo)) &&
+      (!categoria || item.categoria.nome === categoria) &&
+      (!estoqueBaixo || estaComEstoqueBaixo(item)),
+  );
+  const porPagina = limitar(
+    numeroOuPadrao(params.get(PARAMS_CATALOGO.porPagina), FILTROS_CATALOGO_VAZIOS.porPagina),
+    PRIMEIRA_PAGINA,
+    POR_PAGINA_MAXIMO,
+  );
+  const totalPaginas = Math.max(PRIMEIRA_PAGINA, Math.ceil(filtrados.length / porPagina));
+  const pagina = limitar(
+    numeroOuPadrao(params.get(PARAMS_CATALOGO.pagina), PRIMEIRA_PAGINA),
+    PRIMEIRA_PAGINA,
+    totalPaginas,
+  );
+  const inicio = (pagina - PRIMEIRA_PAGINA) * porPagina;
+  return {
+    itens: filtrados.slice(inicio, inicio + porPagina),
+    total: filtrados.length,
+    pagina,
+    porPagina,
+    totalPaginas,
+  };
+}
 
 /**
  * API simulada para desenvolver sem backend. Só é registrada quando `mockApi: true`
@@ -63,28 +118,7 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     );
   }
 
-  if (rota === '/catalogo') {
-    // Filtra e pagina NO SERVIDOR, como a API real: o front só recebe a página pedida.
-    const termo = normalizar(req.params.get('q') ?? '');
-    const categoria = req.params.get('categoria');
-    const estoqueBaixo = req.params.get('estoqueBaixo') === 'true';
-    const filtrados = CATALOGO_DB.filter(
-      (item) =>
-        (!termo || normalizar(`${item.nome} ${item.fornecedor.nome}`).includes(termo)) &&
-        (!categoria || item.categoria.nome === categoria) &&
-        (!estoqueBaixo || item.estoque.quantidade <= item.estoque.minimo),
-    );
-    const porPagina = limitar(Number(req.params.get('porPagina')) || 10, 1, 100);
-    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
-    const pagina = limitar(Number(req.params.get('pagina')) || 1, 1, totalPaginas);
-    return responder<PaginaCatalogo>({
-      itens: filtrados.slice((pagina - 1) * porPagina, pagina * porPagina),
-      total: filtrados.length,
-      pagina,
-      porPagina,
-      totalPaginas,
-    });
-  }
+  if (rota === CATALOGO_ENDPOINT) return responder(listarCatalogo(req.params));
 
   const detalhe = rota.match(/^\/produtos\/([^/]+)$/);
   if (detalhe) {

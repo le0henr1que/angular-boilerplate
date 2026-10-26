@@ -92,9 +92,14 @@ describe('mockApiInterceptor (API simulada)', () => {
       porPagina: '100',
     });
     expect(resposta.itens.length).toBeGreaterThan(0);
-    expect(resposta.itens.every((i) => i.nome.includes('Café') && i.categoria.nome === 'Bebidas')).toBe(true);
+    expect(
+      resposta.itens.every((i) => i.nome.includes('Café') && i.categoria.nome === 'Bebidas'),
+    ).toBe(true);
 
-    const baixo = await get<PaginaCatalogo>('/api/catalogo', { estoqueBaixo: 'true', porPagina: '100' });
+    const baixo = await get<PaginaCatalogo>('/api/catalogo', {
+      estoqueBaixo: 'true',
+      porPagina: '100',
+    });
     expect(baixo.total).toBeGreaterThan(0);
     expect(baixo.itens.every((i) => i.estoque.quantidade <= i.estoque.minimo)).toBe(true);
   });

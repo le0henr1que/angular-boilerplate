@@ -85,7 +85,9 @@ describe('CatalogoPage', () => {
     const linhas = screen.getAllByRole('row');
     expect(linhas).toHaveLength(1 + ITENS.length);
 
-    const celulas = within(linhas[1]).getAllByRole('cell').map((td) => td.textContent?.trim());
+    const celulas = within(linhas[1])
+      .getAllByRole('cell')
+      .map((td) => td.textContent?.trim());
     expect(celulas[2]).toBe('Hortifruti');
     expect(celulas[3]).toBe('Sítio Bom Fruto (Petrolina)');
     expect(celulas[4]).toMatch(/R\$\s7,99/);

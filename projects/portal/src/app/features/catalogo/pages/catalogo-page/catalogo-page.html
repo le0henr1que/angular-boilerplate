@@ -27,7 +27,12 @@
     <div class="campo campo-categoria">
       <label ui-label for="categoria-catalogo">Categoria</label>
       <select ui-select id="categoria-catalogo" (change)="aoMudarCategoria($event)">
-        <option value="" [selected]="filtros.filtros().categoria === ''">Todas</option>
+        <option
+          [value]="todasCategorias"
+          [selected]="filtros.filtros().categoria === todasCategorias"
+        >
+          Todas
+        </option>
         @for (categoria of categorias; track categoria) {
           <option [value]="categoria" [selected]="filtros.filtros().categoria === categoria">
             {{ categoria }}
@@ -89,10 +94,10 @@
       mensagemVazia="Nenhum item encontrado com esses filtros."
       [class.desatualizada]="catalogo.isPlaceholderData()"
     >
-      <ng-template uiCelula="preco" let-preco>
+      <ng-template [uiCelula]="coluna.preco" let-preco>
         <span class="valor">{{ preco | currency: 'BRL' }}</span>
       </ng-template>
-      <ng-template uiCelula="estoque.quantidade" let-quantidade let-item="linha">
+      <ng-template [uiCelula]="coluna.estoque" let-quantidade let-item="linha">
         <span class="valor">{{ quantidade }}</span>
         @if (estoqueBaixo(item)) {
           <span ui-badge variant="destructive" class="alerta-estoque">Baixo</span>
@@ -113,7 +118,7 @@
           </select>
         </div>
 
-        @if (resposta.totalPaginas > 1) {
+        @if (resposta.totalPaginas > primeiraPagina) {
           <ui-pagination
             [pagina]="filtros.filtros().pagina"
             [totalPaginas]="resposta.totalPaginas"

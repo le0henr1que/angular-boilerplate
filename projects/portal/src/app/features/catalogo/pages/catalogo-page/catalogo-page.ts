@@ -14,11 +14,20 @@ import { injectCatalogo } from '../../data-access/catalogo.queries';
 import { injectFiltrosCatalogo } from '../../data-access/inject-filtros-catalogo';
 import {
   CATEGORIAS_CATALOGO,
-  type CategoriaCatalogo,
+  estaComEstoqueBaixo,
   type ItemCatalogo,
   OPCOES_POR_PAGINA,
-  type PorPagina,
+  paraFiltroCategoria,
+  paraPorPagina,
+  PRIMEIRA_PAGINA,
+  TODAS_CATEGORIAS,
 } from '../../models/item-catalogo.model';
+
+/** Colunas com template próprio (uiCelula): a mesma chave na definição e no HTML. */
+const COLUNA = {
+  preco: 'preco',
+  estoque: 'estoque.quantidade',
+} as const;
 
 @Component({
   selector: 'app-catalogo-page',
@@ -45,7 +54,11 @@ export default class CatalogoPage {
   protected readonly catalogo = injectCatalogo(this.filtros.filtros);
 
   protected readonly categorias = CATEGORIAS_CATALOGO;
+  protected readonly todasCategorias = TODAS_CATEGORIAS;
   protected readonly opcoesPorPagina = OPCOES_POR_PAGINA;
+  protected readonly primeiraPagina = PRIMEIRA_PAGINA;
+  protected readonly coluna = COLUNA;
+  protected readonly estoqueBaixo = estaComEstoqueBaixo;
 
   /** Cada coluna lê um caminho do objeto da API, inclusive aninhado ("fornecedor.nome"). */
   protected readonly colunas: UiColuna<ItemCatalogo>[] = [
@@ -57,13 +70,9 @@ export default class CatalogoPage {
       titulo: 'Fornecedor',
       formatar: (nome, item) => `${nome} (${item.fornecedor.cidade})`,
     },
-    { chave: 'preco', titulo: 'Preço', alinhar: 'direita' },
-    { chave: 'estoque.quantidade', titulo: 'Estoque', alinhar: 'direita' },
+    { chave: COLUNA.preco, titulo: 'Preço', alinhar: 'direita' },
+    { chave: COLUNA.estoque, titulo: 'Estoque', alinhar: 'direita' },
   ];
-
-  protected estoqueBaixo(item: ItemCatalogo): boolean {
-    return item.estoque.quantidade <= item.estoque.minimo;
-  }
 
   protected aoPesquisar(evento: SubmitEvent) {
     evento.preventDefault(); // sem isso o navegador recarregaria a página
@@ -75,9 +84,8 @@ export default class CatalogoPage {
   }
 
   protected aoMudarCategoria(evento: Event) {
-    const valor = (evento.target as HTMLSelectElement).value;
     this.filtros.filtrarPorCategoria(
-      CATEGORIAS_CATALOGO.includes(valor as CategoriaCatalogo) ? (valor as CategoriaCatalogo) : '',
+      paraFiltroCategoria((evento.target as HTMLSelectElement).value),
     );
   }
 
@@ -86,9 +94,6 @@ export default class CatalogoPage {
   }
 
   protected aoMudarPorPagina(evento: Event) {
-    const valor = Number((evento.target as HTMLSelectElement).value);
-    if (OPCOES_POR_PAGINA.includes(valor as PorPagina)) {
-      this.filtros.mudarPorPagina(valor as PorPagina);
-    }
+    this.filtros.mudarPorPagina(paraPorPagina((evento.target as HTMLSelectElement).value));
   }
 }
