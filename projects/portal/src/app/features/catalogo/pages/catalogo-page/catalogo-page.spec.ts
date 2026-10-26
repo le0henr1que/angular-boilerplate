@@ -1,4 +1,8 @@
+import { TestBed } from '@angular/core/testing';
+import { criarQueryClient } from '@core/query/query-client';
+import { provideTanStackQuery } from '@tanstack/angular-query-experimental';
 import { provideLocalePtBr } from '@testing/locale';
+import { provideTestQueryClient } from '@testing/test-query-client';
 import { render, screen, within } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { NEVER, of, throwError } from 'rxjs';
@@ -30,7 +34,11 @@ describe('CatalogoPage', () => {
 
   async function abrir() {
     await render(CatalogoPage, {
-      providers: [provideLocalePtBr(), { provide: CatalogoService, useValue: service }],
+      providers: [
+        provideLocalePtBr(),
+        provideTestQueryClient(),
+        { provide: CatalogoService, useValue: service },
+      ],
     });
   }
 
@@ -38,7 +46,8 @@ describe('CatalogoPage', () => {
 
   it('mostra os itens do service, lendo os campos aninhados', async () => {
     await abrir();
-    const linhas = await screen.findAllByRole('row');
+    await screen.findByText('Banana prata (kg)');
+    const linhas = screen.getAllByRole('row');
     expect(linhas).toHaveLength(1 + ITENS.length);
 
     const celulas = within(linhas[1]).getAllByRole('cell').map((td) => td.textContent?.trim());
@@ -51,7 +60,8 @@ describe('CatalogoPage', () => {
 
   it('marca o estoque abaixo do mínimo', async () => {
     await abrir();
-    const [, banana, pao] = await screen.findAllByRole('row');
+    await screen.findByText('Banana prata (kg)');
+    const [, banana, pao] = screen.getAllByRole('row');
     expect(within(banana).queryByText('Baixo')).not.toBeInTheDocument();
     expect(within(pao).getByText('Baixo')).toBeInTheDocument();
   });
@@ -68,5 +78,23 @@ describe('CatalogoPage', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'Tentar de novo' }));
     expect(await screen.findByText('Banana prata (kg)')).toBeInTheDocument();
     expect(service.listar).toHaveBeenCalledTimes(2);
+  });
+
+  it('não chama a API de novo ao sair e voltar para a tela (usa o cache)', async () => {
+    const { fixture } = await render(CatalogoPage, {
+      providers: [
+        provideLocalePtBr(),
+        // O QueryClient do app (com staleTime), não o de teste: é ele que define o cache.
+        provideTanStackQuery(criarQueryClient()),
+        { provide: CatalogoService, useValue: service },
+      ],
+    });
+    await screen.findByText('Banana prata (kg)');
+    fixture.destroy(); // saiu da tela
+
+    const deVolta = TestBed.createComponent(CatalogoPage); // mesmo QueryClient do app
+    deVolta.detectChanges();
+    expect(deVolta.nativeElement).toHaveTextContent('Banana prata (kg)');
+    expect(service.listar).toHaveBeenCalledTimes(1);
   });
 });

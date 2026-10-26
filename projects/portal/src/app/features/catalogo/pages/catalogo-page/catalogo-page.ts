@@ -1,12 +1,11 @@
 import { CurrencyPipe } from '@angular/common';
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { rxResource } from '@angular/core/rxjs-interop';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { UiAlertImports } from '@supermercado/ui/alert';
 import { UiBadge } from '@supermercado/ui/badge';
 import { UiButton } from '@supermercado/ui/button';
 import { type UiColuna, UiDataTableImports } from '@supermercado/ui/data-table';
 import { UiIcon } from '@supermercado/ui/icon';
-import { CatalogoService } from '../../data-access/catalogo.service';
+import { injectCatalogo } from '../../data-access/catalogo.queries';
 import { type ItemCatalogo } from '../../models/item-catalogo.model';
 
 @Component({
@@ -17,10 +16,8 @@ import { type ItemCatalogo } from '../../models/item-catalogo.model';
   styleUrl: './catalogo-page.scss',
 })
 export default class CatalogoPage {
-  readonly #catalogo = inject(CatalogoService);
-
-  /** Chama o service ao abrir a tela. Dá isLoading(), error(), value() e reload(). */
-  protected readonly itens = rxResource({ stream: () => this.#catalogo.listar() });
+  /** Lista do catálogo em cache (TanStack Query): voltar para a tela não chama a API de novo. */
+  protected readonly itens = injectCatalogo();
 
   /** Cada coluna lê um caminho do objeto da API, inclusive aninhado ("fornecedor.nome"). */
   protected readonly colunas: UiColuna<ItemCatalogo>[] = [

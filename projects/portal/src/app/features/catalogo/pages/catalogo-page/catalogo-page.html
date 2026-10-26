@@ -4,7 +4,7 @@
     <p>Itens vindos de GET /catalogo (API simulada em desenvolvimento).</p>
   </header>
 
-  @if (itens.error()) {
+  @if (itens.isError()) {
     <div ui-alert variant="destructive">
       <ui-icon name="circle-alert" />
       <h2 ui-alert-title>Não foi possível carregar o catálogo</h2>
@@ -16,7 +16,7 @@
           size="sm"
           type="button"
           class="tentar-de-novo"
-          (click)="itens.reload()"
+          (click)="itens.refetch()"
         >
           Tentar de novo
         </button>
@@ -24,9 +24,9 @@
     </div>
   } @else {
     <ui-data-table
-      [dados]="itens.value() ?? []"
+      [dados]="itens.data() ?? []"
       [colunas]="colunas"
-      [carregando]="itens.isLoading()"
+      [carregando]="itens.isPending()"
       mensagemVazia="Nenhum item no catálogo."
     >
       <ng-template uiCelula="preco" let-preco>
