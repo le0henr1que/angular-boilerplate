@@ -1,18 +1,25 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
+import { UiBadge } from '@supermercado/ui/badge';
 import { UiButton } from '@supermercado/ui/button';
 import { UiHeaderImports } from '@supermercado/ui/header';
 import { UiIcon } from '@supermercado/ui/icon';
 import { UiSpinner } from '@supermercado/ui/spinner';
 import { injectIsFetching } from '@tanstack/angular-query-experimental';
 import { Auth } from '@core/auth/auth';
-import { APP_CONFIG } from '@core/config/app-config';
+import { APP_CONFIG, type AppEnvironment } from '@core/config/app-config';
 import { injectFeatures } from '@core/config/feature-flags';
 import { injectTema } from '@core/theme/inject-tema';
 
+const ROTULO_AMBIENTE: Record<AppEnvironment, string | null> = {
+  development: 'Desenvolvimento',
+  homologation: 'Homologação',
+  production: null,
+};
+
 @Component({
   selector: 'app-header',
-  imports: [RouterLink, RouterLinkActive, UiButton, UiHeaderImports, UiIcon, UiSpinner],
+  imports: [RouterLink, RouterLinkActive, UiBadge, UiButton, UiHeaderImports, UiIcon, UiSpinner],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <header ui-header>
@@ -20,6 +27,10 @@ import { injectTema } from '@core/theme/inject-tema';
         <ui-icon name="shopping-cart" class="marca-icone" />
         {{ appName }}
       </a>
+      <!-- Fora de produção, deixa claro em que ambiente se está (evita testar "em prod"). -->
+      @if (ambiente) {
+        <span ui-badge variant="destructive" class="ambiente">{{ ambiente }}</span>
+      }
 
       <nav ui-header-nav aria-label="Principal" class="navegacao">
         @for (link of links(); track link.rota) {
@@ -63,7 +74,10 @@ import { injectTema } from '@core/theme/inject-tema';
   styleUrl: './header.css',
 })
 export class AppHeader {
-  protected readonly appName = inject(APP_CONFIG).appName;
+  readonly #config = inject(APP_CONFIG);
+  protected readonly appName = this.#config.appName;
+  /** Rótulo do ambiente; `null` em produção (sem badge). */
+  protected readonly ambiente = ROTULO_AMBIENTE[this.#config.environment];
   protected readonly tema = injectTema();
   protected readonly buscando = injectIsFetching();
   protected readonly auth = inject(Auth);

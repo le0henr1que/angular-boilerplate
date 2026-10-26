@@ -7,6 +7,7 @@
     "build": "ng build ui && ng build portal",
     "build:ui": "ng build ui",
     "build:portal": "ng build portal",
+    "build:homolog": "ng build ui && ng build portal -c homologation",
     "storybook": "ng run storybook:storybook",
     "build-storybook": "ng run storybook:build-storybook",
     "lint": "eslint projects",

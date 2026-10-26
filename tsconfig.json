@@ -11,6 +11,7 @@
     "importHelpers": true,
     "target": "ES2022",
     "module": "preserve",
+    "resolveJsonModule": true,
     "paths": {
       "@supermercado/ui/*": ["./projects/ui/*/src/index.ts"],
       "@core/*": ["./projects/portal/src/app/core/*"],

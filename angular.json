@@ -142,6 +142,27 @@
               ],
               "outputHashing": "all"
             },
+            "homologation": {
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "600kB",
+                  "maximumError": "700kB"
+                },
+                {
+                  "type": "anyComponentStyle",
+                  "maximumWarning": "4kB",
+                  "maximumError": "8kB"
+                }
+              ],
+              "outputHashing": "all",
+              "fileReplacements": [
+                {
+                  "replace": "projects/portal/src/environments/environment.ts",
+                  "with": "projects/portal/src/environments/environment.homologation.ts"
+                }
+              ]
+            },
             "development": {
               "optimization": false,
               "extractLicenses": false,
@@ -161,6 +182,9 @@
           "configurations": {
             "production": {
               "buildTarget": "portal:build:production"
+            },
+            "homologation": {
+              "buildTarget": "portal:build:homologation"
             },
             "development": {
               "buildTarget": "portal:build:development"

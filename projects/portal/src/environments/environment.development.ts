@@ -1,9 +1,11 @@
 import type { AppConfig } from '@core/config/app-config';
+import { version } from '../../../../package.json';
 
 // Desenvolvimento (`ng serve`). Substitui environment.ts via fileReplacements no angular.json.
 export const environment: AppConfig = {
   environment: 'development',
   appName: 'Portal Supermercado (DEV)',
+  version,
   apiUrl: '/api',
   mockApi: true,
   auth: {

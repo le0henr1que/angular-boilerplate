@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { injectCarregamentoGlobal } from '@core/layout/carregamento-global';
 import { AppBreadcrumb } from '@core/layout/breadcrumb/breadcrumb';
+import { AppFooter } from '@core/layout/footer/footer';
 import { AppHeader } from '@core/layout/header/header';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, AppHeader, AppBreadcrumb],
+  imports: [RouterOutlet, AppHeader, AppBreadcrumb, AppFooter],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!--
@@ -24,6 +25,18 @@ import { AppHeader } from '@core/layout/header/header';
       <app-breadcrumb />
       <router-outlet />
     </main>
+    <app-footer [attr.inert]="carregando() ? '' : null" />
+  `,
+  // Rodapé sempre no fim da tela, mesmo com pouco conteúdo.
+  styles: `
+    :host {
+      display: flex;
+      flex-direction: column;
+      min-height: 100dvh;
+    }
+    main {
+      flex: 1;
+    }
   `,
 })
 export class App {

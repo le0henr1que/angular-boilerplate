@@ -6,6 +6,10 @@
   background: var(--muted);
   color: var(--foreground);
 }
+.ambiente {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 .usuario {
   font-size: var(--text-sm);
   color: var(--muted-foreground);

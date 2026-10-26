@@ -39,10 +39,16 @@ import { UiSkeleton } from '@supermercado/ui/skeleton';
         }
       </div>
 
-      <a ui-button routerLink="/produtos">
-        Ver todos os produtos
-        <ui-icon name="arrow-right" />
-      </a>
+      <div class="acoes">
+        <a ui-button routerLink="/produtos">
+          Ver todos os produtos
+          <ui-icon name="arrow-right" />
+        </a>
+        <a ui-button variant="outline" routerLink="/catalogo">
+          Ver catálogo
+          <ui-icon name="arrow-right" />
+        </a>
+      </div>
     </section>
   `,
   styles: `
@@ -59,6 +65,11 @@ import { UiSkeleton } from '@supermercado/ui/skeleton';
     .numero {
       font-size: var(--text-3xl);
       font-variant-numeric: tabular-nums;
+    }
+    .acoes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
     }
     .numero-carregando {
       width: 4rem;

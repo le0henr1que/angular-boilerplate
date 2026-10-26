@@ -1,10 +1,12 @@
 import type { AppConfig } from '@core/config/app-config';
+import { version } from '../../../../package.json';
 
 // Produção (`ng build`). Tudo aqui vai para o bundle público: nunca coloque segredos.
 // (Client secret, tenant e afins do Azure AD ficam no BACKEND, nunca aqui.)
 export const environment: AppConfig = {
   environment: 'production',
   appName: 'Portal Supermercado',
+  version,
   apiUrl: '/api',
   mockApi: false,
   auth: {

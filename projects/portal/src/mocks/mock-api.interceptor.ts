@@ -2,6 +2,7 @@ import { HttpErrorResponse, type HttpInterceptorFn, HttpResponse } from '@angula
 import { inject } from '@angular/core';
 import { APP_CONFIG } from '@core/config/app-config';
 import { Logger } from '@core/logging/logger';
+import { type PaginaCatalogo } from '@features/catalogo';
 import { STATUS_PRODUTO, type StatusProduto } from '@features/produtos';
 import { delay, of, throwError } from 'rxjs';
 import { CATALOGO_DB } from './catalogo.db';
@@ -18,7 +19,10 @@ const normalizar = (texto: string) =>
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase();
 
-const responder = <T>(body: T) =>
+const limitar = (valor: number, minimo: number, maximo: number) =>
+  Math.min(Math.max(Math.trunc(valor), minimo), maximo);
+
+const responder =<T>(body: T) =>
   of(new HttpResponse({ status: 200, body })).pipe(delay(LATENCIA_MS));
 const naoEncontrado = (url: string) =>
   throwError(() => new HttpErrorResponse({ status: 404, statusText: 'Not Found', url })).pipe(
@@ -31,7 +35,7 @@ const naoEncontrado = (url: string) =>
  *
  *   GET {apiUrl}/produtos?q=texto&status=disponivel
  *   GET {apiUrl}/produtos/:codigo
- *   GET {apiUrl}/catalogo
+ *   GET {apiUrl}/catalogo?q=texto&categoria=Bebidas&estoqueBaixo=true&pagina=2&porPagina=10
  */
 export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   const { apiUrl, auth, features } = inject(APP_CONFIG);
@@ -59,7 +63,28 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
     );
   }
 
-  if (rota === '/catalogo') return responder(CATALOGO_DB);
+  if (rota === '/catalogo') {
+    // Filtra e pagina NO SERVIDOR, como a API real: o front só recebe a página pedida.
+    const termo = normalizar(req.params.get('q') ?? '');
+    const categoria = req.params.get('categoria');
+    const estoqueBaixo = req.params.get('estoqueBaixo') === 'true';
+    const filtrados = CATALOGO_DB.filter(
+      (item) =>
+        (!termo || normalizar(`${item.nome} ${item.fornecedor.nome}`).includes(termo)) &&
+        (!categoria || item.categoria.nome === categoria) &&
+        (!estoqueBaixo || item.estoque.quantidade <= item.estoque.minimo),
+    );
+    const porPagina = limitar(Number(req.params.get('porPagina')) || 10, 1, 100);
+    const totalPaginas = Math.max(1, Math.ceil(filtrados.length / porPagina));
+    const pagina = limitar(Number(req.params.get('pagina')) || 1, 1, totalPaginas);
+    return responder<PaginaCatalogo>({
+      itens: filtrados.slice((pagina - 1) * porPagina, pagina * porPagina),
+      total: filtrados.length,
+      pagina,
+      porPagina,
+      totalPaginas,
+    });
+  }
 
   const detalhe = rota.match(/^\/produtos\/([^/]+)$/);
   if (detalhe) {

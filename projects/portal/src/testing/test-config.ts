@@ -16,6 +16,7 @@ export const TEST_FEATURES: FeatureFlags = {
 export const TEST_APP_CONFIG: AppConfig = {
   environment: 'development',
   appName: 'Portal (TESTE)',
+  version: '0.0.0-teste',
   apiUrl: '/api',
   mockApi: false,
   auth: {

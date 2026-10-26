@@ -7,7 +7,7 @@ import { type FeatureFlags } from './feature-flags';
  * homologação/staging. Para criar um novo ambiente, adicione-o aqui e o compilador
  * aponta todos os lugares que precisam tratá-lo.
  */
-export type AppEnvironment = 'development' | 'production';
+export type AppEnvironment = 'development' | 'homologation' | 'production';
 
 /**
  * Autenticação. Dois jeitos de usar o Azure AD / Entra ID:
@@ -64,6 +64,8 @@ export interface MsalConfig {
 export interface AppConfig {
   readonly environment: AppEnvironment;
   readonly appName: string;
+  /** Versão do app (o `version` do package.json). Aparece no rodapé. */
+  readonly version: string;
   /** Endereço base da API. Os serviços montam as URLs a partir dele. */
   readonly apiUrl: string;
   /**

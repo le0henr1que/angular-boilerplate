@@ -6,6 +6,7 @@ import { provideTestQueryClient } from '@testing/test-query-client';
 import { render, screen } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
 import { TestBed } from '@angular/core/testing';
+import { type AppEnvironment } from '@core/config/app-config';
 import { AppHeader } from './header';
 
 @Component({ template: '' })
@@ -20,10 +21,10 @@ describe('AppHeader', () => {
 
   afterEach(() => vi.unstubAllGlobals());
 
-  async function renderizar(url = '/inicio') {
+  async function renderizar(url = '/inicio', ambiente: AppEnvironment = 'development') {
     const resultado = await render(AppHeader, {
       providers: [
-        provideTestAppConfig({ appName: 'Portal Teste' }),
+        provideTestAppConfig({ appName: 'Portal Teste', environment: ambiente }),
         provideTestQueryClient(),
         provideRouter([
           { path: 'inicio', component: PaginaVazia },
@@ -38,6 +39,16 @@ describe('AppHeader', () => {
   it('mostra o nome do app vindo da configuração, com link para a raiz', async () => {
     await renderizar();
     expect(screen.getByRole('link', { name: /Portal Teste/ })).toHaveAttribute('href', '/');
+  });
+
+  it('mostra badge do ambiente fora de produção', async () => {
+    await renderizar('/inicio', 'homologation');
+    expect(screen.getByText('Homologação')).toBeInTheDocument();
+  });
+
+  it('não mostra badge de ambiente em produção', async () => {
+    await renderizar('/inicio', 'production');
+    expect(screen.queryByText(/Homologação|Desenvolvimento/)).not.toBeInTheDocument();
   });
 
   it('tem navegação principal com os links das páginas', async () => {

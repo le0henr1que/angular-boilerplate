@@ -6,6 +6,7 @@ import {
 } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
+import { type PaginaCatalogo } from '@features/catalogo';
 import { type Produto } from '@features/produtos';
 import { provideTestAppConfig } from '@testing/test-config';
 import { firstValueFrom } from 'rxjs';
@@ -73,8 +74,34 @@ describe('mockApiInterceptor (API simulada)', () => {
     expect(await get<Produto>(`/api/produtos/${alvo.codigo}`)).toEqual(alvo);
   });
 
-  it('lista o catálogo', async () => {
-    expect(await get('/api/catalogo')).toEqual(CATALOGO_DB);
+  it('pagina o catálogo no servidor', async () => {
+    const pagina2 = await get<PaginaCatalogo>('/api/catalogo', { pagina: '2', porPagina: '10' });
+    expect(pagina2.itens).toEqual(CATALOGO_DB.slice(10, 20));
+    expect(pagina2).toMatchObject({
+      total: CATALOGO_DB.length,
+      pagina: 2,
+      porPagina: 10,
+      totalPaginas: Math.ceil(CATALOGO_DB.length / 10),
+    });
+  });
+
+  it('filtra o catálogo por termo, categoria e estoque baixo', async () => {
+    const resposta = await get<PaginaCatalogo>('/api/catalogo', {
+      q: 'cafe', // sem acento, acha "Café"
+      categoria: 'Bebidas',
+      porPagina: '100',
+    });
+    expect(resposta.itens.length).toBeGreaterThan(0);
+    expect(resposta.itens.every((i) => i.nome.includes('Café') && i.categoria.nome === 'Bebidas')).toBe(true);
+
+    const baixo = await get<PaginaCatalogo>('/api/catalogo', { estoqueBaixo: 'true', porPagina: '100' });
+    expect(baixo.total).toBeGreaterThan(0);
+    expect(baixo.itens.every((i) => i.estoque.quantidade <= i.estoque.minimo)).toBe(true);
+  });
+
+  it('corrige página fora do intervalo para a última', async () => {
+    const resposta = await get<PaginaCatalogo>('/api/catalogo', { pagina: '999' });
+    expect(resposta.pagina).toBe(resposta.totalPaginas);
   });
 
   it('responde 404 para produto inexistente', async () => {

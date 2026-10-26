@@ -1,5 +1,61 @@
+@use 'responsive' as *;
+
+/* ── Filtros ── */
+.filtros {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.campo {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.checkbox {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+/* Em telas largas, os filtros ficam lado a lado, alinhados pela base. */
+@include b2b-breakpoint('md') {
+  .filtros {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+
+  .campo-busca {
+    flex: 1;
+  }
+
+  .campo-categoria {
+    width: 11rem;
+  }
+}
+
+/* ── Estados ── */
 .tentar-de-novo {
   margin-top: 0.5rem;
+}
+
+.contagem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.25rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+/* ── Tabela ── */
+.desatualizada {
+  opacity: 0.5;
+  transition: opacity var(--transition);
 }
 
 .valor {
@@ -8,4 +64,20 @@
 
 .alerta-estoque {
   margin-left: 0.5rem;
+}
+
+/* ── Paginação ── */
+.rodape {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.por-pagina {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  white-space: nowrap;
 }
