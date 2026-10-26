@@ -4,6 +4,7 @@ import { APP_CONFIG } from '@core/config/app-config';
 import { Logger } from '@core/logging/logger';
 import { STATUS_PRODUTO, type StatusProduto } from '@features/produtos';
 import { delay, of, throwError } from 'rxjs';
+import { CATALOGO_DB } from './catalogo.db';
 import { PRODUTOS_DB } from './produtos.db';
 import { lerSessaoMock } from './sessao-mock';
 
@@ -30,6 +31,7 @@ const naoEncontrado = (url: string) =>
  *
  *   GET {apiUrl}/produtos?q=texto&status=disponivel
  *   GET {apiUrl}/produtos/:codigo
+ *   GET {apiUrl}/catalogo
  */
 export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   const { apiUrl, auth, features } = inject(APP_CONFIG);
@@ -56,6 +58,8 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
       ),
     );
   }
+
+  if (rota === '/catalogo') return responder(CATALOGO_DB);
 
   const detalhe = rota.match(/^\/produtos\/([^/]+)$/);
   if (detalhe) {

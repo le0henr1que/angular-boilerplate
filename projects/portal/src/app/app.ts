@@ -1,11 +1,12 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { injectCarregamentoGlobal } from '@core/layout/carregamento-global';
+import { AppBreadcrumb } from '@core/layout/breadcrumb/breadcrumb';
 import { AppHeader } from '@core/layout/header/header';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, AppHeader],
+  imports: [RouterOutlet, AppHeader, AppBreadcrumb],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!--
@@ -20,6 +21,7 @@ import { AppHeader } from '@core/layout/header/header';
     }
     <app-header [attr.inert]="carregando() ? '' : null" />
     <main [attr.inert]="carregando() ? '' : null">
+      <app-breadcrumb />
       <router-outlet />
     </main>
   `,

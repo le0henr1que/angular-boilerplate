@@ -1,0 +1,43 @@
+<section class="pagina">
+  <header class="titulo-pagina">
+    <h1>Catálogo</h1>
+    <p>Itens vindos de GET /catalogo (API simulada em desenvolvimento).</p>
+  </header>
+
+  @if (itens.error()) {
+    <div ui-alert variant="destructive">
+      <ui-icon name="circle-alert" />
+      <h2 ui-alert-title>Não foi possível carregar o catálogo</h2>
+      <div ui-alert-description>
+        <p>Verifique sua conexão e tente de novo.</p>
+        <button
+          ui-button
+          variant="outline"
+          size="sm"
+          type="button"
+          class="tentar-de-novo"
+          (click)="itens.reload()"
+        >
+          Tentar de novo
+        </button>
+      </div>
+    </div>
+  } @else {
+    <ui-data-table
+      [dados]="itens.value() ?? []"
+      [colunas]="colunas"
+      [carregando]="itens.isLoading()"
+      mensagemVazia="Nenhum item no catálogo."
+    >
+      <ng-template uiCelula="preco" let-preco>
+        <span class="valor">{{ preco | currency: 'BRL' }}</span>
+      </ng-template>
+      <ng-template uiCelula="estoque.quantidade" let-quantidade let-item="linha">
+        <span class="valor">{{ quantidade }}</span>
+        @if (estoqueBaixo(item)) {
+          <span ui-badge variant="destructive" class="alerta-estoque">Baixo</span>
+        }
+      </ng-template>
+    </ui-data-table>
+  }
+</section>

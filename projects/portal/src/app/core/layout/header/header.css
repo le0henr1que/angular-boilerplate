@@ -1,0 +1,15 @@
+.marca-icone {
+  font-size: var(--text-xl);
+}
+/* Mais específico que o estilo do botão "ghost", para o link ativo ganhar o fundo. */
+.navegacao .ativo {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.usuario {
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+.carregando {
+  color: var(--muted-foreground);
+}

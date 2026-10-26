@@ -54,6 +54,10 @@ export const routes: Routes = [
         data: { preload: true },
       },
       {
+        path: 'catalogo',
+        loadChildren: () => import('@features/catalogo/catalogo.routes'),
+      },
+      {
         path: 'fornecedores',
         canMatch: [exigeFeature('fornecedores')],
         loadChildren: () => import('@features/fornecedores/fornecedores.route'),

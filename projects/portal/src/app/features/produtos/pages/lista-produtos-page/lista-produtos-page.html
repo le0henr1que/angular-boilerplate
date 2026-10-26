@@ -99,46 +99,31 @@
       }
     </div>
 
-    <div ui-table-container>
-      <table ui-table>
-        <thead ui-thead>
-          <tr ui-tr>
-            <th ui-th>Código</th>
-            <th ui-th>Nome</th>
-            <th ui-th>Categoria</th>
-            <th ui-th>Validade</th>
-            <th ui-th class="direita">Preço</th>
-            <th ui-th>Status</th>
-          </tr>
-        </thead>
-        <!-- isPlaceholderData: a tabela ainda é a da busca anterior (keepPreviousData). -->
-        <tbody ui-tbody [class.desatualizada]="produtos.isPlaceholderData()">
-          @for (produto of produtos.data(); track produto.codigo) {
-            <tr ui-tr>
-              <td ui-td class="destaque">
-                <!-- Ao passar o mouse (ou focar pelo teclado), já busca o detalhe para o cache. -->
-                <a
-                  class="link-codigo"
-                  [routerLink]="['/produtos', produto.codigo]"
-                  (mouseenter)="prefetch(produto.codigo)"
-                  (focus)="prefetch(produto.codigo)"
-                >
-                  {{ produto.codigo }}
-                </a>
-              </td>
-              <td ui-td>{{ produto.nome }}</td>
-              <td ui-td>{{ produto.categoria }}</td>
-              <td ui-td class="sem-quebra">
-                {{ produto.validade | date: 'dd/MM/yyyy' : 'UTC' }}
-              </td>
-              <td ui-td class="direita valor">{{ produto.preco | currency: 'BRL' }}</td>
-              <td ui-td>
-                <app-status-produto-badge [status]="produto.status" />
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-    </div>
+    <!-- As colunas ficam no .ts (colunas); aqui só as células que não são texto puro.
+         isPlaceholderData: a tabela ainda é a da busca anterior (keepPreviousData). -->
+    <ui-data-table
+      [dados]="produtos.data() ?? []"
+      [colunas]="colunas"
+      rastrearPor="codigo"
+      [class.desatualizada]="produtos.isPlaceholderData()"
+    >
+      <!-- Ao passar o mouse (ou focar pelo teclado), já busca o detalhe para o cache. -->
+      <ng-template uiCelula="codigo" let-codigo>
+        <a
+          class="link-codigo"
+          [routerLink]="['/produtos', codigo]"
+          (mouseenter)="prefetch(codigo)"
+          (focus)="prefetch(codigo)"
+        >
+          {{ codigo }}
+        </a>
+      </ng-template>
+      <ng-template uiCelula="preco" let-preco>
+        <span class="valor">{{ preco | currency: 'BRL' }}</span>
+      </ng-template>
+      <ng-template uiCelula="status" let-status>
+        <app-status-produto-badge [status]="status" />
+      </ng-template>
+    </ui-data-table>
   }
 </section>

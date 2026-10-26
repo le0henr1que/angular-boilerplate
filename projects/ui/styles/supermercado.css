@@ -7,6 +7,8 @@
  *
  * Quem usa a biblioteca importa este arquivo no styles.css do app:
  *   @import '../../ui/styles/supermercado.css';
+ *
+ * Breakpoints não ficam aqui (var() não funciona em @media): ver _responsive.scss.
  */
 
 :root {

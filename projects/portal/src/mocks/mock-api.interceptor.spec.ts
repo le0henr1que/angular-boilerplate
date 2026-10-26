@@ -9,6 +9,7 @@ import { TestBed } from '@angular/core/testing';
 import { type Produto } from '@features/produtos';
 import { provideTestAppConfig } from '@testing/test-config';
 import { firstValueFrom } from 'rxjs';
+import { CATALOGO_DB } from './catalogo.db';
 import { PRODUTOS_DB } from './produtos.db';
 import { mockApiInterceptor } from './mock-api.interceptor';
 
@@ -70,6 +71,10 @@ describe('mockApiInterceptor (API simulada)', () => {
   it('busca o detalhe pelo código', async () => {
     const alvo = PRODUTOS_DB[3];
     expect(await get<Produto>(`/api/produtos/${alvo.codigo}`)).toEqual(alvo);
+  });
+
+  it('lista o catálogo', async () => {
+    expect(await get('/api/catalogo')).toEqual(CATALOGO_DB);
   });
 
   it('responde 404 para produto inexistente', async () => {

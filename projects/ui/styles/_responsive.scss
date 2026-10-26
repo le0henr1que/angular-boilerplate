@@ -1,0 +1,28 @@
+// Breakpoints do supermercado (mobile-first: o estilo base é o do celular).
+//
+// Ficam em SCSS porque var() não funciona dentro de @media. Nos componentes:
+//   @use 'responsive' as *;
+//   .grade { @include b2b-breakpoint('md') { ... } }
+// O 'responsive' resolve pelo stylePreprocessorOptions.includePaths do angular.json.
+@use 'sass:map';
+
+$breakpoints: (
+  'xs': 360px,
+  'sm': 480px,
+  'md': 768px,
+  'lg': 960px,
+  'xl': 1024px,
+  'xxl': 1280px,
+  '3xl': 1366px,
+  '4xl': 1440px,
+);
+
+/// Aplica o conteúdo a partir da largura do breakpoint (min-width).
+@mixin b2b-breakpoint($nome) {
+  @if not map.has-key($breakpoints, $nome) {
+    @error "Breakpoint '#{$nome}' não existe. Use: #{map.keys($breakpoints)}.";
+  }
+  @media (min-width: map.get($breakpoints, $nome)) {
+    @content;
+  }
+}

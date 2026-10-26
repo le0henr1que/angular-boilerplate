@@ -24,7 +24,7 @@
               "tsConfig": "projects/ui/tsconfig.lib.prod.json"
             },
             "development": {
-              "tsConfig": "projects/ui/tsconefig.lib.json"
+              "tsConfig": "projects/ui/tsconfig.lib.json"
             }
           }
         },
@@ -119,7 +119,12 @@
             ],
             "styles": [
               "projects/portal/src/styles.css"
-            ]
+            ],
+            "stylePreprocessorOptions": {
+              "includePaths": [
+                "projects/ui/styles"
+              ]
+            }
           },
           "configurations": {
             "production": {

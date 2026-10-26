@@ -1,3 +1,5 @@
+@use 'responsive' as *;
+
 /* ── Filtros ── */
 .filtros {
   display: flex;
@@ -17,7 +19,7 @@
 }
 
 /* Em telas largas, os campos ficam lado a lado, alinhados pela base. */
-@media (min-width: 40rem) {
+@include b2b-breakpoint('md') {
   .filtros {
     flex-direction: row;
     align-items: flex-end;
@@ -68,25 +70,14 @@
   opacity: 0.5;
 }
 
-.destaque {
-  font-weight: 500;
-}
-
 .link-codigo {
+  font-weight: 500;
   text-decoration: none;
   text-underline-offset: 4px;
 }
 
 .link-codigo:hover {
   text-decoration: underline;
-}
-
-.sem-quebra {
-  white-space: nowrap;
-}
-
-.direita {
-  text-align: right;
 }
 
 .valor {

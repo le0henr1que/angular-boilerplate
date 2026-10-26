@@ -27,7 +27,7 @@ import { StatusProdutoBadge } from '../../ui/status-produto-badge';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './detalhe-produto-page.html',
-  styleUrl: './detalhe-produto-page.css',
+  styleUrl: './detalhe-produto-page.scss',
 })
 export default class DetalheProdutoPage {
   /** Vem do parâmetro :codigo da rota (withComponentInputBinding no app.config.ts). */

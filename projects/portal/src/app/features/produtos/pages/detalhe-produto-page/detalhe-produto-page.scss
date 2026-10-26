@@ -1,3 +1,5 @@
+@use 'responsive' as *;
+
 .voltar {
   align-self: flex-start;
 }
@@ -21,7 +23,7 @@
   gap: 1rem 1.5rem;
 }
 
-@media (min-width: 40rem) {
+@include b2b-breakpoint('md') {
   .dados {
     grid-template-columns: 1fr 1fr;
   }
