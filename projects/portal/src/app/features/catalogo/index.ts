@@ -5,10 +5,10 @@ export {
   CATEGORIAS_CATALOGO,
   type CategoriaCatalogo,
   estaComEstoqueBaixo,
-  FILTROS_CATALOGO_VAZIOS,
   type ItemCatalogo,
   type PaginaCatalogo,
   PARAM_LIGADO,
   PARAMS_CATALOGO,
+  POR_PAGINA_PADRAO,
   PRIMEIRA_PAGINA,
 } from './models/item-catalogo.model';

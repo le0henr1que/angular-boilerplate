@@ -10,7 +10,10 @@ const circulo = (cx: number, cy: number, r: number) =>
 
 export const ICONES = {
   'arrow-left': ['M19 12H5', 'm12 19-7-7 7-7'],
+  'arrow-down': ['M12 5v14', 'm19 12-7 7-7-7'],
   'arrow-right': ['M5 12h14', 'm12 5 7 7-7 7'],
+  'arrow-up': ['M12 19V5', 'm5 12 7-7 7 7'],
+  'arrow-up-down': ['m21 16-4 4-4-4', 'M17 20V4', 'm3 8 4-4 4 4', 'M7 4v16'],
   'chevron-left': ['m15 18-6-6 6-6'],
   'chevron-right': ['m9 18 6-6-6-6'],
   'circle-alert': [circulo(12, 12, 10), 'M12 8v4', 'M12 16h.01'],

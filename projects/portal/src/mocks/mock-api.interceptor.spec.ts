@@ -104,6 +104,23 @@ describe('mockApiInterceptor (API simulada)', () => {
     expect(baixo.itens.every((i) => i.estoque.quantidade <= i.estoque.minimo)).toBe(true);
   });
 
+  it('ordena o catálogo no servidor, inclusive por campo aninhado', async () => {
+    const porPreco = await get<PaginaCatalogo>('/api/catalogo', {
+      ordenarPor: 'preco',
+      direcao: 'desc',
+      porPagina: '100',
+    });
+    const precos = porPreco.itens.map((i) => i.preco);
+    expect(precos).toEqual([...precos].sort((a, b) => b - a));
+
+    const porEstoque = await get<PaginaCatalogo>('/api/catalogo', {
+      ordenarPor: 'estoque.quantidade',
+      porPagina: '100',
+    });
+    const estoques = porEstoque.itens.map((i) => i.estoque.quantidade);
+    expect(estoques).toEqual([...estoques].sort((a, b) => a - b));
+  });
+
   it('corrige página fora do intervalo para a última', async () => {
     const resposta = await get<PaginaCatalogo>('/api/catalogo', { pagina: '999' });
     expect(resposta.pagina).toBe(resposta.totalPaginas);

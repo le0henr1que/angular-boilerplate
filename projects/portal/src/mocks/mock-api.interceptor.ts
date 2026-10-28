@@ -10,13 +10,16 @@ import { Logger } from '@core/logging/logger';
 import {
   CATALOGO_ENDPOINT,
   estaComEstoqueBaixo,
-  FILTROS_CATALOGO_VAZIOS,
+  type ItemCatalogo,
   type PaginaCatalogo,
   PARAM_LIGADO,
   PARAMS_CATALOGO,
+  POR_PAGINA_PADRAO,
   PRIMEIRA_PAGINA,
 } from '@features/catalogo';
 import { STATUS_PRODUTO, type StatusProduto } from '@features/produtos';
+import { DIRECAO_ORDENACAO } from '@shared/list-table';
+import { lerCaminho } from '@supermercado/ui/data-table';
 import { delay, of, throwError } from 'rxjs';
 import { CATALOGO_DB } from './catalogo.db';
 import { PRODUTOS_DB } from './produtos.db';
@@ -52,9 +55,29 @@ function numeroOuPadrao(valor: string | null, padrao: number): number {
   return numero;
 }
 
-/** GET /catalogo: filtra e pagina NO SERVIDOR, como a API real; o front só recebe a página pedida. */
+/** Multiplicador da comparação: crescente mantém, decrescente inverte. */
+const CRESCENTE = 1;
+const SINAL_DA_DIRECAO = new Map<string | null, number>([
+  [DIRECAO_ORDENACAO.crescente, CRESCENTE],
+  [DIRECAO_ORDENACAO.decrescente, -CRESCENTE],
+]);
+
+/** Ordena por um caminho do item ("estoque.quantidade"); sem caminho, mantém a ordem do banco. */
+function ordenarCatalogo(itens: ItemCatalogo[], params: HttpParams): ItemCatalogo[] {
+  const caminho = params.get(PARAMS_CATALOGO.ordenarPor);
+  if (!caminho) return itens;
+  const sinal = SINAL_DA_DIRECAO.get(params.get(PARAMS_CATALOGO.direcao)) ?? CRESCENTE;
+  return [...itens].sort((a, b) => {
+    const valorA = lerCaminho(a, caminho);
+    const valorB = lerCaminho(b, caminho);
+    if (typeof valorA === 'number' && typeof valorB === 'number') return (valorA - valorB) * sinal;
+    return String(valorA).localeCompare(String(valorB), 'pt-BR') * sinal;
+  });
+}
+
+/** GET /catalogo: filtra, ordena e pagina NO SERVIDOR, como a API real; o front só recebe a página pedida. */
 function listarCatalogo(params: HttpParams): PaginaCatalogo {
-  const termo = normalizar(params.get(PARAMS_CATALOGO.termo) ?? FILTROS_CATALOGO_VAZIOS.termo);
+  const termo = normalizar(params.get(PARAMS_CATALOGO.termo) ?? '');
   const categoria = params.get(PARAMS_CATALOGO.categoria);
   const estoqueBaixo = params.get(PARAMS_CATALOGO.estoqueBaixo) === PARAM_LIGADO;
   const filtrados = CATALOGO_DB.filter(
@@ -64,7 +87,7 @@ function listarCatalogo(params: HttpParams): PaginaCatalogo {
       (!estoqueBaixo || estaComEstoqueBaixo(item)),
   );
   const porPagina = limitar(
-    numeroOuPadrao(params.get(PARAMS_CATALOGO.porPagina), FILTROS_CATALOGO_VAZIOS.porPagina),
+    numeroOuPadrao(params.get(PARAMS_CATALOGO.porPagina), POR_PAGINA_PADRAO),
     PRIMEIRA_PAGINA,
     POR_PAGINA_MAXIMO,
   );
@@ -76,7 +99,7 @@ function listarCatalogo(params: HttpParams): PaginaCatalogo {
   );
   const inicio = (pagina - PRIMEIRA_PAGINA) * porPagina;
   return {
-    itens: filtrados.slice(inicio, inicio + porPagina),
+    itens: ordenarCatalogo(filtrados, params).slice(inicio, inicio + porPagina),
     total: filtrados.length,
     pagina,
     porPagina,
@@ -90,7 +113,7 @@ function listarCatalogo(params: HttpParams): PaginaCatalogo {
  *
  *   GET {apiUrl}/produtos?q=texto&status=disponivel
  *   GET {apiUrl}/produtos/:codigo
- *   GET {apiUrl}/catalogo?q=texto&categoria=Bebidas&estoqueBaixo=true&pagina=2&porPagina=10
+ *   GET {apiUrl}/catalogo?q=texto&categoria=Bebidas&estoqueBaixo=true&pagina=2&porPagina=10&ordenarPor=preco&direcao=desc
  */
 export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   const { apiUrl, auth, features } = inject(APP_CONFIG);

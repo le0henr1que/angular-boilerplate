@@ -11,9 +11,9 @@ import userEvent from '@testing-library/user-event';
 import { NEVER, of, throwError } from 'rxjs';
 import { CatalogoService } from '../../data-access/catalogo.service';
 import {
-  type FiltrosCatalogo,
   type ItemCatalogo,
   type PaginaCatalogo,
+  type RequisicaoCatalogo,
 } from '../../models/item-catalogo.model';
 import CatalogoPage from './catalogo-page';
 
@@ -39,13 +39,13 @@ const ITENS: ItemCatalogo[] = [
 @Component({ template: 'outra' })
 class OutraPagina {}
 
-/** Resposta da API:a página pedida com os ITENS, num total de 3 páginas. */
-const responder = (filtros: FiltrosCatalogo) =>
+/** Resposta da API: a página pedida com os ITENS, num total de 3 páginas. */
+const responder = ({ paginacao }: RequisicaoCatalogo) =>
   of<PaginaCatalogo>({
     itens: ITENS,
     total: 25,
-    pagina: filtros.pagina,
-    porPagina: filtros.porPagina,
+    pagina: paginacao?.pagina ?? 1,
+    porPagina: paginacao?.porPagina ?? 10,
     totalPaginas: 3,
   });
 
@@ -71,8 +71,8 @@ describe('CatalogoPage', () => {
   }
 
   const url = () => TestBed.inject(Router).url;
-  /** Filtros de cada chamada à API, na ordem. */
-  const chamadas = (): FiltrosCatalogo[] => service.listar.mock.calls.map(([f]) => f);
+  /** Requisição de cada chamada à API, na ordem. */
+  const chamadas = (): RequisicaoCatalogo[] => service.listar.mock.calls.map(([r]) => r);
 
   // Chaves: no Vitest, uma função devolvida pelo beforeEach roda como limpeza no fim do teste.
   beforeEach(() => {
@@ -93,11 +93,10 @@ describe('CatalogoPage', () => {
     expect(celulas[4]).toMatch(/R\$\s7,99/);
     expect(screen.getByText(/25 item\(ns\)/)).toBeInTheDocument();
     expect(chamadas()[0]).toEqual({
-      termo: '',
-      categoria: '',
-      estoqueBaixo: false,
-      pagina: 1,
-      porPagina: 10,
+      filtros: { categoria: '', estoqueBaixo: false },
+      busca: '',
+      paginacao: { pagina: 1, porPagina: 10 },
+      ordenacao: null,
     });
   });
 
@@ -112,18 +111,17 @@ describe('CatalogoPage', () => {
   it('pré-carrega a próxima página assim que a atual chega', async () => {
     await abrir();
     await screen.findByText('Banana prata (kg)');
-    await vi.waitFor(() => expect(chamadas().map((f) => f.pagina)).toEqual([1, 2]));
+    await vi.waitFor(() => expect(chamadas().map((r) => r.paginacao?.pagina)).toEqual([1, 2]));
   });
 
   it('manda os filtros da URL para a API', async () => {
     await abrir('/catalogo?q=cafe&categoria=Bebidas&estoqueBaixo=true&pagina=2');
     await screen.findByText('Banana prata (kg)');
     expect(chamadas()[0]).toEqual({
-      termo: 'cafe',
-      categoria: 'Bebidas',
-      estoqueBaixo: true,
-      pagina: 2,
-      porPagina: 10,
+      filtros: { categoria: 'Bebidas', estoqueBaixo: true },
+      busca: 'cafe',
+      paginacao: { pagina: 2, porPagina: 10 },
+      ordenacao: null,
     });
     expect(screen.getByLabelText('Pesquisar')).toHaveValue('cafe');
     expect(screen.getByLabelText('Categoria')).toHaveValue('Bebidas');
@@ -135,7 +133,7 @@ describe('CatalogoPage', () => {
     await screen.findByText('Banana prata (kg)');
     await user.type(screen.getByLabelText('Pesquisar'), 'cafe{Enter}');
     await vi.waitFor(() => expect(url()).toBe('/catalogo?q=cafe'));
-    await vi.waitFor(() => expect(chamadas().some((f) => f.termo === 'cafe')).toBe(true));
+    await vi.waitFor(() => expect(chamadas().some((r) => r.busca === 'cafe')).toBe(true));
   });
 
   it('categoria e estoque baixo filtram e voltam para a página 1', async () => {
@@ -145,6 +143,16 @@ describe('CatalogoPage', () => {
     await vi.waitFor(() => expect(url()).toBe('/catalogo?categoria=Padaria'));
     await user.click(screen.getByLabelText('Só estoque baixo'));
     await vi.waitFor(() => expect(url()).toBe('/catalogo?categoria=Padaria&estoqueBaixo=true'));
+  });
+
+  it('ordena pelo cabeçalho e manda a ordenação para a API', async () => {
+    await abrir();
+    await screen.findByText('Banana prata (kg)');
+    await user.click(screen.getByRole('button', { name: 'Ordenar por Preço' }));
+    await vi.waitFor(() => expect(url()).toBe('/catalogo?ordenarPor=preco&direcao=asc'));
+    await vi.waitFor(() =>
+      expect(chamadas().some((r) => r.ordenacao?.campo === 'preco')).toBe(true),
+    );
   });
 
   it('a paginação troca a página na URL', async () => {

@@ -1,0 +1,46 @@
+@use 'responsive' as *;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ── Filtros: empilhados no celular, lado a lado (alinhados pela base) em telas largas ── */
+.filtros {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@include b2b-breakpoint('md') {
+  .filtros {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-end;
+  }
+
+  .busca {
+    flex: 1;
+    min-width: 14rem;
+  }
+}
+
+/* ── Estados ── */
+.tentar-de-novo {
+  margin-top: 0.5rem;
+}
+
+.contagem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.25rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+.desatualizada {
+  opacity: 0.5;
+  transition: opacity var(--transition);
+}

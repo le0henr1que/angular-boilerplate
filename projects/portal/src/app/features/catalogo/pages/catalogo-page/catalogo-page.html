@@ -1,131 +1,36 @@
 <section class="pagina">
   <header class="titulo-pagina">
     <h1>Catálogo</h1>
-    <p>Filtros e paginação feitos pela API (GET /catalogo).</p>
+    <p>Busca, filtros, ordenação e paginação feitos pela API (GET /catalogo).</p>
   </header>
 
-  <!-- Form nativo: a busca roda enquanto digita (com debounce); Enter aplica na hora. -->
-  <form role="search" class="filtros" (submit)="aoPesquisar($event)">
-    <div class="campo campo-busca">
-      <label ui-label for="busca-catalogo">Pesquisar</label>
-      <div ui-input-group>
-        <span ui-input-group-addon>
-          <ui-icon name="search" />
-        </span>
-        <input
-          ui-input-group-input
-          id="busca-catalogo"
-          type="search"
-          placeholder="Produto ou fornecedor"
-          autocomplete="off"
-          [value]="filtros.termoDigitado()"
-          (input)="aoDigitar($event)"
-        />
-      </div>
-    </div>
+  <app-list-table
+    [fonte]="fonte"
+    [colunas]="colunas"
+    [filtros]="filtros"
+    [opcoesPorPagina]="opcoesPorPagina"
+    placeholderBusca="Produto ou fornecedor"
+    tituloErro="Não foi possível carregar o catálogo"
+    mensagemVazia="Nenhum item encontrado com esses filtros."
+  >
+    <!-- Filtros específicos (children): a busca, o "Limpar" e a paginação já vêm prontos. -->
+    <app-list-table-filtro-opcoes
+      class="campo-categoria"
+      rotulo="Categoria"
+      rotuloTodas="Todas"
+      [filtro]="filtros.categoria"
+      [opcoes]="categorias"
+    />
+    <app-list-table-filtro-booleano rotulo="Só estoque baixo" [filtro]="filtros.estoqueBaixo" />
 
-    <div class="campo campo-categoria">
-      <label ui-label for="categoria-catalogo">Categoria</label>
-      <select ui-select id="categoria-catalogo" (change)="aoMudarCategoria($event)">
-        <option
-          [value]="todasCategorias"
-          [selected]="filtros.filtros().categoria === todasCategorias"
-        >
-          Todas
-        </option>
-        @for (categoria of categorias; track categoria) {
-          <option [value]="categoria" [selected]="filtros.filtros().categoria === categoria">
-            {{ categoria }}
-          </option>
-        }
-      </select>
-    </div>
-
-    <label class="checkbox">
-      <input
-        type="checkbox"
-        [checked]="filtros.filtros().estoqueBaixo"
-        (change)="aoMudarEstoqueBaixo($event)"
-      />
-      Só estoque baixo
-    </label>
-
-    @if (filtros.temFiltro()) {
-      <button ui-button variant="ghost" type="button" (click)="filtros.limpar()">Limpar</button>
-    }
-  </form>
-
-  @if (catalogo.isError()) {
-    <div ui-alert variant="destructive">
-      <ui-icon name="circle-alert" />
-      <h2 ui-alert-title>Não foi possível carregar o catálogo</h2>
-      <div ui-alert-description>
-        <p>Verifique sua conexão e tente de novo.</p>
-        <button
-          ui-button
-          variant="outline"
-          size="sm"
-          type="button"
-          class="tentar-de-novo"
-          (click)="catalogo.refetch()"
-        >
-          Tentar de novo
-        </button>
-      </div>
-    </div>
-  } @else {
-    <div class="contagem" aria-live="polite">
-      @if (catalogo.data(); as resposta) {
-        {{ resposta.total }} item(ns)
+    <ng-template [uiCelula]="coluna.preco" let-preco>
+      <span class="valor">{{ preco | currency: 'BRL' }}</span>
+    </ng-template>
+    <ng-template [uiCelula]="coluna.estoque" let-quantidade let-item="linha">
+      <span class="valor">{{ quantidade }}</span>
+      @if (estoqueBaixo(item)) {
+        <span ui-badge variant="destructive" class="alerta-estoque">Baixo</span>
       }
-      <!-- isFetching com dados na tela: buscando a nova página/filtro em segundo plano. -->
-      @if (catalogo.isFetching() && !catalogo.isPending()) {
-        <ui-spinner aria-label="Atualizando" />
-        <span>Atualizando…</span>
-      }
-    </div>
-
-    <!-- isPlaceholderData: ainda é a página anterior, até a nova chegar (keepPreviousData). -->
-    <ui-data-table
-      [dados]="catalogo.data()?.itens ?? []"
-      [colunas]="colunas"
-      [carregando]="catalogo.isPending()"
-      [linhasCarregando]="filtros.filtros().porPagina"
-      mensagemVazia="Nenhum item encontrado com esses filtros."
-      [class.desatualizada]="catalogo.isPlaceholderData()"
-    >
-      <ng-template [uiCelula]="coluna.preco" let-preco>
-        <span class="valor">{{ preco | currency: 'BRL' }}</span>
-      </ng-template>
-      <ng-template [uiCelula]="coluna.estoque" let-quantidade let-item="linha">
-        <span class="valor">{{ quantidade }}</span>
-        @if (estoqueBaixo(item)) {
-          <span ui-badge variant="destructive" class="alerta-estoque">Baixo</span>
-        }
-      </ng-template>
-    </ui-data-table>
-
-    @if (catalogo.data(); as resposta) {
-      <footer class="rodape">
-        <div class="por-pagina">
-          <label ui-label for="por-pagina-catalogo">Itens por página</label>
-          <select ui-select id="por-pagina-catalogo" (change)="aoMudarPorPagina($event)">
-            @for (opcao of opcoesPorPagina; track opcao) {
-              <option [value]="opcao" [selected]="filtros.filtros().porPagina === opcao">
-                {{ opcao }}
-              </option>
-            }
-          </select>
-        </div>
-
-        @if (resposta.totalPaginas > primeiraPagina) {
-          <ui-pagination
-            [pagina]="filtros.filtros().pagina"
-            [totalPaginas]="resposta.totalPaginas"
-            (mudarPagina)="filtros.irParaPagina($event)"
-          />
-        }
-      </footer>
-    }
-  }
+    </ng-template>
+  </app-list-table>
 </section>

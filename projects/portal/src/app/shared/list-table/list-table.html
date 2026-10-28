@@ -1,0 +1,105 @@
+<!-- Form nativo: a busca roda enquanto digita (com debounce); Enter aplica na hora. -->
+<form role="search" class="filtros" (submit)="aoPesquisar($event)">
+  @if (busca()) {
+    <app-list-table-busca
+      class="busca"
+      [texto]="estadoBusca.texto()"
+      [rotulo]="textos.busca"
+      [placeholder]="placeholderBusca()"
+      (digitar)="estadoBusca.digitar($event)"
+    />
+  }
+
+  <!-- Filtros específicos da tela (children). -->
+  <ng-content />
+
+  @if (temFiltro()) {
+    <button ui-button variant="ghost" type="button" (click)="limparFiltros()">
+      {{ textos.limpar }}
+    </button>
+  }
+</form>
+
+@if (consulta.isError()) {
+  <div ui-alert variant="destructive">
+    <ui-icon [name]="iconeErro" />
+    <h2 ui-alert-title>{{ tituloErro() }}</h2>
+    <div ui-alert-description>
+      <p>{{ textos.erroDescricao }}</p>
+      <button
+        ui-button
+        variant="outline"
+        size="sm"
+        type="button"
+        class="tentar-de-novo"
+        (click)="recarregar()"
+      >
+        {{ textos.tentarDeNovo }}
+      </button>
+    </div>
+  </div>
+} @else {
+  <div class="contagem" aria-live="polite">
+    @if (consulta.data(); as resultado) {
+      {{ textos.total(resultado.total) }}
+    }
+    <!-- isFetching com dados na tela: buscando a nova página/filtro em segundo plano. -->
+    @if (consulta.isFetching() && !consulta.isPending()) {
+      <ui-spinner [attr.aria-label]="textos.atualizando" />
+      <span>{{ textos.atualizando }}</span>
+    }
+  </div>
+
+  <!-- isPlaceholderData: ainda é o resultado anterior, até o novo chegar (keepPreviousData). -->
+  <ui-data-table
+    [dados]="consulta.data()?.itens ?? []"
+    [colunas]="colunas()"
+    [carregando]="consulta.isPending()"
+    [linhasCarregando]="estadoPaginacao.estado()?.porPagina ?? opcoesPorPagina()[0]"
+    [mensagemVazia]="mensagemVazia()"
+    [rastrearPor]="rastrearPor()"
+    [class.desatualizada]="consulta.isPlaceholderData()"
+  >
+    @for (coluna of colunasOrdenaveis(); track coluna.id) {
+      <ng-template [uiCabecalho]="coluna.id">
+        <app-list-table-cabecalho-ordenavel
+          [titulo]="coluna.titulo"
+          [campo]="coluna.id"
+          [ordenacao]="estadoOrdenacao.estado()"
+          [rotulo]="textos.ordenarPor(coluna.titulo)"
+          (ordenar)="ordenarPor(coluna.id)"
+        />
+      </ng-template>
+    }
+    @for (cabecalho of cabecalhos(); track cabecalho.uiCabecalho()) {
+      <ng-template [uiCabecalho]="cabecalho.uiCabecalho()" let-coluna>
+        <ng-container
+          [ngTemplateOutlet]="cabecalho.template"
+          [ngTemplateOutletContext]="{ $implicit: coluna }"
+        />
+      </ng-template>
+    }
+    @for (celula of celulas(); track celula.uiCelula()) {
+      <ng-template [uiCelula]="celula.uiCelula()" let-valor let-linha="linha" let-indice="indice">
+        <ng-container
+          [ngTemplateOutlet]="celula.template"
+          [ngTemplateOutletContext]="{ $implicit: valor, linha: linha, indice: indice }"
+        />
+      </ng-template>
+    }
+  </ui-data-table>
+
+  @if (estadoPaginacao.estado(); as paginacaoAtual) {
+    @if (consulta.data(); as resultado) {
+      <app-list-table-rodape
+        [pagina]="paginacaoAtual.pagina"
+        [totalPaginas]="resultado.totalPaginas"
+        [porPagina]="paginacaoAtual.porPagina"
+        [opcoesPorPagina]="opcoesPorPagina()"
+        [rotuloPorPagina]="textos.itensPorPagina"
+        (mudarPagina)="irParaPagina($event)"
+        (mudarPorPagina)="mudarPorPagina($event)"
+      />
+    }
+  }
+}

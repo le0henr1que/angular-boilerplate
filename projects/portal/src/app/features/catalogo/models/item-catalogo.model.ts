@@ -1,3 +1,15 @@
+import {
+  filtroBooleano,
+  filtroOpcoes,
+  type ListTableRequisicao,
+  PARAM_LIGADO,
+  PRIMEIRA_PAGINA,
+  TODAS_AS_OPCOES,
+  type ValoresDosCampos,
+} from '@shared/list-table';
+
+export { PARAM_LIGADO, PRIMEIRA_PAGINA };
+
 /** Formato de cada item que a API devolve. Objetos aninhados, como numa API real. */
 export interface ItemCatalogo {
   id: number;
@@ -25,17 +37,15 @@ export const CATEGORIAS_CATALOGO = ['Hortifruti', 'Padaria', 'Bebidas', 'Limpeza
 export type CategoriaCatalogo = (typeof CATEGORIAS_CATALOGO)[number];
 
 /** Valor do filtro de categoria que significa "todas" (sem filtro). */
-export const TODAS_CATEGORIAS = '';
-export type FiltroCategoria = CategoriaCatalogo | typeof TODAS_CATEGORIAS;
+export const TODAS_CATEGORIAS = TODAS_AS_OPCOES;
 
 export const OPCOES_POR_PAGINA = [10, 20, 50] as const;
-export type PorPagina = (typeof OPCOES_POR_PAGINA)[number];
-
-export const PRIMEIRA_PAGINA = 1;
+export const POR_PAGINA_PADRAO = OPCOES_POR_PAGINA[0];
 
 /**
- * Nome de cada filtro na query string, tanto na URL da tela quanto na chamada à API:
- *   ?q=cafe&categoria=Bebidas&estoqueBaixo=true&pagina=2&porPagina=20
+ * Nome de cada parâmetro na query string, tanto na URL da tela quanto na chamada à API:
+ *   ?q=cafe&categoria=Bebidas&estoqueBaixo=true&pagina=2&porPagina=20&ordenarPor=preco&direcao=desc
+ * Busca, paginação e ordenação usam os nomes padrão da list-table (LIST_TABLE_CONFIG_PADRAO).
  */
 export const PARAMS_CATALOGO = {
   termo: 'q',
@@ -43,79 +53,23 @@ export const PARAMS_CATALOGO = {
   estoqueBaixo: 'estoqueBaixo',
   pagina: 'pagina',
   porPagina: 'porPagina',
+  ordenarPor: 'ordenarPor',
+  direcao: 'direcao',
 } as const;
 
-/** Como um booleano ligado viaja na query string (?estoqueBaixo=true). */
-export const PARAM_LIGADO = String(true);
-
-/** Filtros enviados para a API. Também são a chave do cache (ver catalogo.queries.ts). */
-export interface FiltrosCatalogo {
-  /** Busca por nome do produto ou do fornecedor (?q=). */
-  termo: string;
-  /** TODAS_CATEGORIAS = sem filtro (?categoria=). */
-  categoria: FiltroCategoria;
-  /** Só itens com estoque no mínimo ou abaixo (?estoqueBaixo=true). */
-  estoqueBaixo: boolean;
-  /** Começa em PRIMEIRA_PAGINA (?pagina=). */
-  pagina: number;
-  porPagina: PorPagina;
-}
-
-export const FILTROS_CATALOGO_VAZIOS: FiltrosCatalogo = {
-  termo: '',
-  categoria: TODAS_CATEGORIAS,
-  estoqueBaixo: false,
-  pagina: PRIMEIRA_PAGINA,
-  porPagina: OPCOES_POR_PAGINA[0],
+/** Filtros específicos do catálogo (busca, paginação e ordenação já vêm da list-table). */
+export const FILTROS_CATALOGO = {
+  categoria: filtroOpcoes(PARAMS_CATALOGO.categoria, CATEGORIAS_CATALOGO),
+  /** Só itens com estoque no mínimo ou abaixo dele. */
+  estoqueBaixo: filtroBooleano(PARAMS_CATALOGO.estoqueBaixo),
 };
 
-export function ehCategoriaCatalogo(valor: unknown): valor is CategoriaCatalogo {
-  return CATEGORIAS_CATALOGO.includes(valor as CategoriaCatalogo);
-}
+export type FiltrosCatalogo = ValoresDosCampos<typeof FILTROS_CATALOGO>;
 
-export function ehPorPagina(valor: unknown): valor is PorPagina {
-  return OPCOES_POR_PAGINA.includes(valor as PorPagina);
-}
-
-/** Texto vindo de fora (URL, <select>) → categoria válida; qualquer outra coisa vira "todas". */
-export function paraFiltroCategoria(valor: string | null): FiltroCategoria {
-  if (ehCategoriaCatalogo(valor)) return valor;
-  return TODAS_CATEGORIAS;
-}
-
-/** Texto vindo de fora → número de página válido; inválido ou menor que a 1ª vira a 1ª. */
-export function paraPagina(valor: string | null): number {
-  const pagina = Number(valor);
-  if (Number.isInteger(pagina) && pagina > PRIMEIRA_PAGINA) return pagina;
-  return PRIMEIRA_PAGINA;
-}
-
-/** Texto vindo de fora → opção de itens por página; fora das opções vira o padrão. */
-export function paraPorPagina(valor: string | null): PorPagina {
-  const porPagina = Number(valor);
-  if (ehPorPagina(porPagina)) return porPagina;
-  return FILTROS_CATALOGO_VAZIOS.porPagina;
-}
+/** O que a tela pede para a API. Também é a chave do cache (ver catalogo.queries.ts). */
+export type RequisicaoCatalogo = ListTableRequisicao<FiltrosCatalogo>;
 
 /** Regra de negócio única para "estoque baixo": no mínimo ou abaixo dele. */
 export function estaComEstoqueBaixo(item: ItemCatalogo): boolean {
   return item.estoque.quantidade <= item.estoque.minimo;
-}
-
-export function temFiltroAtivo(filtros: FiltrosCatalogo): boolean {
-  return (
-    filtros.termo !== FILTROS_CATALOGO_VAZIOS.termo ||
-    filtros.categoria !== TODAS_CATEGORIAS ||
-    filtros.estoqueBaixo
-  );
-}
-
-export function filtrosIguais(a: FiltrosCatalogo, b: FiltrosCatalogo): boolean {
-  return (
-    a.termo === b.termo &&
-    a.categoria === b.categoria &&
-    a.estoqueBaixo === b.estoqueBaixo &&
-    a.pagina === b.pagina &&
-    a.porPagina === b.porPagina
-  );
 }
