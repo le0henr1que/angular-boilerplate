@@ -25,23 +25,23 @@ export class CatalogoService {
   private readonly http = inject(HttpClient);
   private readonly url = `${inject(APP_CONFIG).apiUrl}${CATALOGO_ENDPOINT}`;
 
-  listar({ filtros, busca, paginacao, ordenacao }: RequisicaoCatalogo): Observable<PaginaCatalogo> {
+  listar({ filters, search, pagination, sort }: RequisicaoCatalogo): Observable<PaginaCatalogo> {
     let params = new HttpParams();
-    const termo = busca.trim();
+    const termo = search.trim();
     if (termo) params = params.set(PARAMS_CATALOGO.termo, termo);
-    if (filtros.categoria !== TODAS_CATEGORIAS) {
-      params = params.set(PARAMS_CATALOGO.categoria, filtros.categoria);
+    if (filters.categoria !== TODAS_CATEGORIAS) {
+      params = params.set(PARAMS_CATALOGO.categoria, filters.categoria);
     }
-    if (filtros.estoqueBaixo) params = params.set(PARAMS_CATALOGO.estoqueBaixo, PARAM_LIGADO);
-    if (paginacao) {
+    if (filters.estoqueBaixo) params = params.set(PARAMS_CATALOGO.estoqueBaixo, PARAM_LIGADO);
+    if (pagination) {
       params = params
-        .set(PARAMS_CATALOGO.pagina, paginacao.pagina)
-        .set(PARAMS_CATALOGO.porPagina, paginacao.porPagina);
+        .set(PARAMS_CATALOGO.pagina, pagination.page)
+        .set(PARAMS_CATALOGO.porPagina, pagination.pageSize);
     }
-    if (ordenacao) {
+    if (sort) {
       params = params
-        .set(PARAMS_CATALOGO.ordenarPor, ordenacao.campo)
-        .set(PARAMS_CATALOGO.direcao, ordenacao.direcao);
+        .set(PARAMS_CATALOGO.ordenarPor, sort.field)
+        .set(PARAMS_CATALOGO.direcao, sort.direction);
     }
     return this.http.get<PaginaCatalogo>(this.url, { params });
   }

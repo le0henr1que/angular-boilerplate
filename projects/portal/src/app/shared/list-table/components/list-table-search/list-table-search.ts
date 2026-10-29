@@ -2,20 +2,20 @@ import { ChangeDetectionStrategy, Component, input, output } from '@angular/core
 import { type IconName, UiIcon } from '@supermercado/ui/icon';
 import { UiInputGroupImports } from '@supermercado/ui/input';
 import { UiLabel } from '@supermercado/ui/label';
-import { idUnico } from '../../utils/id-unico';
+import { uniqueId } from '../../utils/unique-id';
 
-const ICONE_BUSCA: IconName = 'search';
+const SEARCH_ICON: IconName = 'search';
 
-/** Campo de busca padrão da list-table. Apresentacional: o debounce fica no injectBusca. */
+/** The list-table's default search field. Presentational: the debounce lives in injectSearch. */
 @Component({
-  selector: 'app-list-table-busca',
+  selector: 'app-list-table-search',
   imports: [UiIcon, UiInputGroupImports, UiLabel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <label ui-label [for]="id">{{ rotulo() }}</label>
+    <label ui-label [for]="id">{{ label() }}</label>
     <div ui-input-group>
       <span ui-input-group-addon>
-        <ui-icon [name]="icone" />
+        <ui-icon [name]="icon" />
       </span>
       <input
         ui-input-group-input
@@ -23,8 +23,8 @@ const ICONE_BUSCA: IconName = 'search';
         autocomplete="off"
         [id]="id"
         [placeholder]="placeholder()"
-        [value]="texto()"
-        (input)="aoDigitar($event)"
+        [value]="text()"
+        (input)="onInput($event)"
       />
     </div>
   `,
@@ -36,16 +36,16 @@ const ICONE_BUSCA: IconName = 'search';
     }
   `,
 })
-export class ListTableBusca {
-  readonly texto = input.required<string>();
-  readonly rotulo = input.required<string>();
+export class ListTableSearch {
+  readonly text = input.required<string>();
+  readonly label = input.required<string>();
   readonly placeholder = input.required<string>();
-  readonly digitar = output<string>();
+  readonly textChange = output<string>();
 
-  protected readonly id = idUnico('list-table-busca');
-  protected readonly icone = ICONE_BUSCA;
+  protected readonly id = uniqueId('list-table-search');
+  protected readonly icon = SEARCH_ICON;
 
-  protected aoDigitar(evento: Event) {
-    this.digitar.emit((evento.target as HTMLInputElement).value);
+  protected onInput(event: Event) {
+    this.textChange.emit((event.target as HTMLInputElement).value);
   }
 }

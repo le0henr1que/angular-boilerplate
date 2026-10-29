@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
-import { type ListTableFonte } from '@shared/list-table';
+import { type ListTableSource } from '@shared/list-table';
+import { map } from 'rxjs';
 import { type FiltrosCatalogo, type ItemCatalogo } from '../models/item-catalogo.model';
 import { CatalogoService } from './catalogo.service';
 
@@ -17,10 +18,20 @@ export const catalogoKeys = {
 };
 
 /** De onde a list-table do catálogo tira os dados. Só pode ser chamado na criação do componente. */
-export function injectFonteCatalogo(): ListTableFonte<ItemCatalogo, FiltrosCatalogo> {
+export function injectFonteCatalogo(): ListTableSource<ItemCatalogo, FiltrosCatalogo> {
   const service = inject(CatalogoService);
   return {
-    chave: catalogoKeys.listas(),
-    buscar: (requisicao) => service.listar(requisicao),
+    key: catalogoKeys.listas(),
+    // Adapta a resposta da API ao formato da list-table.
+    fetch: (requisicao) =>
+      service
+        .listar(requisicao)
+        .pipe(
+          map(({ itens, total, totalPaginas }) => ({
+            items: itens,
+            total,
+            totalPages: totalPaginas,
+          })),
+        ),
   };
 }

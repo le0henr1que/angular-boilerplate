@@ -5,23 +5,23 @@
   </header>
 
   <app-list-table
-    [fonte]="fonte"
-    [colunas]="colunas"
-    [filtros]="filtros"
-    [opcoesPorPagina]="opcoesPorPagina"
-    placeholderBusca="Produto ou fornecedor"
-    tituloErro="Não foi possível carregar o catálogo"
-    mensagemVazia="Nenhum item encontrado com esses filtros."
+    [source]="fonte"
+    [columns]="colunas"
+    [filters]="filtros"
+    [pageSizeOptions]="opcoesPorPagina"
+    searchPlaceholder="Produto ou fornecedor"
+    errorTitle="Não foi possível carregar o catálogo"
+    emptyMessage="Nenhum item encontrado com esses filtros."
   >
     <!-- Filtros específicos (children): a busca, o "Limpar" e a paginação já vêm prontos. -->
-    <app-list-table-filtro-opcoes
+    <app-list-table-options-filter
       class="campo-categoria"
-      rotulo="Categoria"
-      rotuloTodas="Todas"
-      [filtro]="filtros.categoria"
-      [opcoes]="categorias"
+      label="Categoria"
+      allLabel="Todas"
+      [filter]="filtros.categoria"
+      [options]="categorias"
     />
-    <app-list-table-filtro-booleano rotulo="Só estoque baixo" [filtro]="filtros.estoqueBaixo" />
+    <app-list-table-boolean-filter label="Só estoque baixo" [filter]="filtros.estoqueBaixo" />
 
     <ng-template [uiCelula]="coluna.preco" let-preco>
       <span class="valor">{{ preco | currency: 'BRL' }}</span>

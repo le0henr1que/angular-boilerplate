@@ -1,104 +1,97 @@
-<!-- Form nativo: a busca roda enquanto digita (com debounce); Enter aplica na hora. -->
-<form role="search" class="filtros" (submit)="aoPesquisar($event)">
-  @if (busca()) {
-    <app-list-table-busca
-      class="busca"
-      [texto]="estadoBusca.texto()"
-      [rotulo]="textos.busca"
-      [placeholder]="placeholderBusca()"
-      (digitar)="estadoBusca.digitar($event)"
+<!-- Native form: search runs while typing (debounced); Enter applies right away. -->
+<form role="search" class="filters" (submit)="onSubmit($event)">
+  @if (search()) {
+    <app-list-table-search
+      class="search"
+      [text]="searchState.text()"
+      [label]="texts.search"
+      [placeholder]="searchPlaceholder()"
+      (textChange)="searchState.setText($event)"
     />
   }
 
-  <!-- Filtros específicos da tela (children). -->
+  <!-- The screen's specific filters (children). -->
   <ng-content />
 
-  @if (temFiltro()) {
-    <button ui-button variant="ghost" type="button" (click)="limparFiltros()">
-      {{ textos.limpar }}
+  @if (hasFilter()) {
+    <button ui-button variant="ghost" type="button" (click)="clearFilters()">
+      {{ texts.clear }}
     </button>
   }
 </form>
 
-@if (consulta.isError()) {
+@if (query.isError()) {
   <div ui-alert variant="destructive">
-    <ui-icon [name]="iconeErro" />
-    <h2 ui-alert-title>{{ tituloErro() }}</h2>
+    <ui-icon [name]="errorIcon" />
+    <h2 ui-alert-title>{{ errorTitle() }}</h2>
     <div ui-alert-description>
-      <p>{{ textos.erroDescricao }}</p>
-      <button
-        ui-button
-        variant="outline"
-        size="sm"
-        type="button"
-        class="tentar-de-novo"
-        (click)="recarregar()"
-      >
-        {{ textos.tentarDeNovo }}
+      <p>{{ texts.errorDescription }}</p>
+      <button ui-button variant="outline" size="sm" type="button" class="retry" (click)="reload()">
+        {{ texts.retry }}
       </button>
     </div>
   </div>
 } @else {
-  <div class="contagem" aria-live="polite">
-    @if (consulta.data(); as resultado) {
-      {{ textos.total(resultado.total) }}
+  <div class="count" aria-live="polite">
+    @if (query.data(); as result) {
+      {{ texts.total(result.total) }}
     }
-    <!-- isFetching com dados na tela: buscando a nova página/filtro em segundo plano. -->
-    @if (consulta.isFetching() && !consulta.isPending()) {
-      <ui-spinner [attr.aria-label]="textos.atualizando" />
-      <span>{{ textos.atualizando }}</span>
+    <!-- isFetching with data on screen: fetching the new page/filter in the background. -->
+    @if (query.isFetching() && !query.isPending()) {
+      <ui-spinner [attr.aria-label]="texts.refreshing" />
+      <span>{{ texts.refreshing }}</span>
     }
   </div>
 
-  <!-- isPlaceholderData: ainda é o resultado anterior, até o novo chegar (keepPreviousData). -->
+  <!-- isPlaceholderData: still the previous result, until the new one arrives (keepPreviousData). -->
   <ui-data-table
-    [dados]="consulta.data()?.itens ?? []"
-    [colunas]="colunas()"
-    [carregando]="consulta.isPending()"
-    [linhasCarregando]="estadoPaginacao.estado()?.porPagina ?? opcoesPorPagina()[0]"
-    [mensagemVazia]="mensagemVazia()"
-    [rastrearPor]="rastrearPor()"
-    [class.desatualizada]="consulta.isPlaceholderData()"
+    [dados]="query.data()?.items ?? []"
+    [colunas]="columns()"
+    [carregando]="query.isPending()"
+    [linhasCarregando]="paginationState.state()?.pageSize ?? pageSizeOptions()[0]"
+    [mensagemVazia]="emptyMessage()"
+    [rastrearPor]="trackBy()"
+    [class.stale]="query.isPlaceholderData()"
   >
-    @for (coluna of colunasOrdenaveis(); track coluna.id) {
-      <ng-template [uiCabecalho]="coluna.id">
-        <app-list-table-cabecalho-ordenavel
-          [titulo]="coluna.titulo"
-          [campo]="coluna.id"
-          [ordenacao]="estadoOrdenacao.estado()"
-          [rotulo]="textos.ordenarPor(coluna.titulo)"
-          (ordenar)="ordenarPor(coluna.id)"
+    @for (column of sortableColumns(); track column.id) {
+      <ng-template [uiCabecalho]="column.id">
+        <app-list-table-sort-header
+          [heading]="column.heading"
+          [field]="column.id"
+          [sort]="sortingState.state()"
+          [label]="texts.sortBy(column.heading)"
+          (toggleSort)="sortBy(column.id)"
         />
       </ng-template>
     }
-    @for (cabecalho of cabecalhos(); track cabecalho.uiCabecalho()) {
-      <ng-template [uiCabecalho]="cabecalho.uiCabecalho()" let-coluna>
+    @for (header of headers(); track header.uiCabecalho()) {
+      <ng-template [uiCabecalho]="header.uiCabecalho()" let-column>
         <ng-container
-          [ngTemplateOutlet]="cabecalho.template"
-          [ngTemplateOutletContext]="{ $implicit: coluna }"
+          [ngTemplateOutlet]="header.template"
+          [ngTemplateOutletContext]="{ $implicit: column }"
         />
       </ng-template>
     }
-    @for (celula of celulas(); track celula.uiCelula()) {
-      <ng-template [uiCelula]="celula.uiCelula()" let-valor let-linha="linha" let-indice="indice">
+    @for (cell of cells(); track cell.uiCelula()) {
+      <ng-template [uiCelula]="cell.uiCelula()" let-value let-row="linha" let-index="indice">
         <ng-container
-          [ngTemplateOutlet]="celula.template"
-          [ngTemplateOutletContext]="{ $implicit: valor, linha: linha, indice: indice }"
+          [ngTemplateOutlet]="cell.template"
+          [ngTemplateOutletContext]="{ $implicit: value, linha: row, indice: index }"
         />
       </ng-template>
     }
   </ui-data-table>
 
-  @if (estadoPaginacao.estado(); as paginacaoAtual) {
-    @if (consulta.data(); as resultado) {
-      <app-list-table-rodape
-        [pagina]="paginacaoAtual.pagina"
-        [totalPaginas]="resultado.totalPaginas"
-        [porPagina]="paginacaoAtual.porPagina"
-        [opcoesPorPagina]="opcoesPorPagina()"
-        [rotuloPorPagina]="textos.itensPorPagina"
-        (mudarPagina)="irParaPagina($event)"
-        (mudarPorPagina)="mudarPorPagina($event)"
+  @if (paginationState.state(); as currentPagination) {
+    @if (query.data(); as result) {
+      <app-list-table-footer
+        [page]="currentPagination.page"
+        [totalPages]="result.totalPages"
+        [pageSize]="currentPagination.pageSize"
+        [pageSizeOptions]="pageSizeOptions()"
+        [pageSizeLabel]="texts.pageSize"
+        (pageChange)="goToPage($event)"
+        (pageSizeChange)="changePageSize($event)"
       />
     }
   }

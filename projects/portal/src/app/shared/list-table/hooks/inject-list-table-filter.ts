@@ -1,25 +1,24 @@
 import { computed, inject } from '@angular/core';
-import { LIST_TABLE_CONTEXTO, type OpcoesDeAplicacao } from '../list-table.context';
-import { type CampoUrl } from '../models/campo-url';
+import { type ApplyOptions, LIST_TABLE_CONTEXT } from '../list-table.context';
+import { type UrlField } from '../models/url-field';
 
 /**
- * "Hook" para criar um filtro novo: chame no componente do filtro, que deve estar DENTRO de
- * uma <app-list-table> (como child). Ele lê e grava o valor pela list-table, que cuida da URL,
- * de voltar para a página 1, do "Limpar" e de mandar o valor para a fonte de dados.
+ * "Hook" for building a new filter: call it in the filter component, which must be INSIDE an
+ * <app-list-table> (as a child). It reads and writes the value through the list-table, which
+ * handles the URL, going back to page 1, "Clear", and sending the value to the data source.
  *
- *   export class FiltroLoja {
- *     readonly filtro = input.required<CampoUrl<number>>();
- *     protected readonly loja = injectListTableFilter(this.filtro);
- *     // template: [value]="loja.valor()" (change)="loja.definir(+$any($event.target).value)"
+ *   export class StoreFilter {
+ *     readonly filter = input.required<UrlField<number>>();
+ *     protected readonly store = injectListTableFilter(this.filter);
+ *     // template: [value]="store.value()" (change)="onChange($event)"
  *   }
  */
-export function injectListTableFilter<V>(campo: () => CampoUrl<V>) {
-  const contexto = inject(LIST_TABLE_CONTEXTO);
+export function injectListTableFilter<V>(field: () => UrlField<V>) {
+  const context = inject(LIST_TABLE_CONTEXT);
 
   return {
-    valor: computed(() => contexto.valorDoFiltro(campo())),
-    definir: (valor: V, opcoes?: OpcoesDeAplicacao) =>
-      contexto.aplicarFiltro(campo(), valor, opcoes),
-    limpar: () => contexto.aplicarFiltro(campo(), campo().padrao),
+    value: computed(() => context.filterValue(field())),
+    set: (value: V, options?: ApplyOptions) => context.applyFilter(field(), value, options),
+    clear: () => context.applyFilter(field(), field().defaultValue),
   };
 }

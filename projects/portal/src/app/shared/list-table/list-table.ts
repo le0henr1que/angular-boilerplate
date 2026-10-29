@@ -20,60 +20,56 @@ import {
 } from '@supermercado/ui/data-table';
 import { type IconName, UiIcon } from '@supermercado/ui/icon';
 import { UiSpinner } from '@supermercado/ui/spinner';
-import { ListTableBusca } from './components/list-table-busca/list-table-busca';
-import { ListTableCabecalhoOrdenavel } from './components/list-table-cabecalho-ordenavel/list-table-cabecalho-ordenavel';
-import { ListTableRodape } from './components/list-table-rodape/list-table-rodape';
-import { injectBusca } from './hooks/inject-busca';
-import { injectFiltros } from './hooks/inject-filtros';
+import { ListTableFooter } from './components/list-table-footer/list-table-footer';
+import { ListTableSearch } from './components/list-table-search/list-table-search';
+import { ListTableSortHeader } from './components/list-table-sort-header/list-table-sort-header';
+import { injectFilters } from './hooks/inject-filters';
 import { injectListQuery } from './hooks/inject-list-query';
-import { injectOrdenacao } from './hooks/inject-ordenacao';
-import { injectPaginacao } from './hooks/inject-paginacao';
-import { injectParametrosUrl } from './hooks/inject-parametros-url';
+import { injectPagination } from './hooks/inject-pagination';
+import { injectSearch } from './hooks/inject-search';
+import { injectSorting } from './hooks/inject-sorting';
+import { injectUrlParams } from './hooks/inject-url-params';
 import { LIST_TABLE_CONFIG } from './list-table.config';
+import { type ApplyOptions, LIST_TABLE_CONTEXT, type ListTableContext } from './list-table.context';
 import {
-  LIST_TABLE_CONTEXTO,
-  type ListTableContexto,
-  type OpcoesDeAplicacao,
-} from './list-table.context';
-import { type CampoUrl, type CamposUrl, lerCampo, textoDoCampo } from './models/campo-url';
-import {
-  idDaColuna,
-  type ListTableColuna,
-  type ListTableFonte,
-  type ListTableRequisicao,
-  type Ordenacao,
+  columnId,
+  type ListTableColumn,
+  type ListTableRequest,
+  type ListTableSource,
+  type Sort,
 } from './models/list-table.models';
+import { fieldToParam, readField, type UrlField, type UrlFields } from './models/url-field';
 
-const ICONE_ERRO: IconName = 'circle-alert';
+const ERROR_ICON: IconName = 'circle-alert';
 
-/** Sem filtros específicos: só busca, ordenação e paginação. */
-const SEM_FILTROS = {};
+/** No specific filters: only search, sorting and pagination. */
+const NO_FILTERS = {};
 
 /**
- * Listagem completa vinda da API: busca, filtros, ordenação, paginação, estados (carregando,
- * atualizando, vazio, erro) e cache. Já vem com busca, ordenação e paginação; a tela informa
- * só a fonte dos dados, as colunas e os filtros específicos dela.
+ * A complete API-backed listing: search, filters, sorting, pagination, states (loading,
+ * refreshing, empty, error) and caching. Search, sorting and pagination are built in; the
+ * screen only provides the data source, the columns and its own specific filters.
  *
- *   <app-list-table [fonte]="fonte" [colunas]="colunas" [filtros]="filtros">
- *     <!-- children: os controles dos filtros específicos -->
- *     <app-list-table-filtro-opcoes rotulo="Status" [filtro]="filtros.status" [opcoes]="status" />
+ *   <app-list-table [source]="source" [columns]="columns" [filters]="filters">
+ *     <!-- children: the controls of the specific filters -->
+ *     <app-list-table-options-filter label="Status" [filter]="filters.status" [options]="status" />
  *
- *     <!-- células e cabeçalhos especiais, repassados ao ui-data-table -->
+ *     <!-- custom cells and headers, forwarded to ui-data-table -->
  *     <ng-template uiCelula="total" let-total>{{ total | currency: 'BRL' }}</ng-template>
  *   </app-list-table>
  *
- * Ligar/desligar: [busca]="false", [ordenacao]="false", [paginacao]="false".
- * O estado mora na URL (?q=&pagina=&porPagina=&ordenarPor=&direcao= + filtros): recarregar ou
- * compartilhar o link mantém tudo, e o "voltar" desfaz a última mudança.
+ * Turning parts off: [search]="false", [sorting]="false", [pagination]="false".
+ * State lives in the URL (?q=&page=&pageSize=&sortBy=&sortDirection= + filters): reloading or
+ * sharing the link keeps everything, and "back" undoes the last change.
  *
- * Filtros novos: crie um componente que chama injectListTableFilter(campo) e coloque como child.
+ * New filters: create a component that calls injectListTableFilter(field) and add it as a child.
  */
 @Component({
   selector: 'app-list-table',
   imports: [
-    ListTableBusca,
-    ListTableCabecalhoOrdenavel,
-    ListTableRodape,
+    ListTableFooter,
+    ListTableSearch,
+    ListTableSortHeader,
     NgTemplateOutlet,
     UiAlertImports,
     UiButton,
@@ -81,133 +77,133 @@ const SEM_FILTROS = {};
     UiIcon,
     UiSpinner,
   ],
-  // Os filtros projetados (children) injetam este contexto para ler e gravar seus valores.
-  providers: [{ provide: LIST_TABLE_CONTEXTO, useExisting: forwardRef(() => ListTable) }],
+  // Projected filters (children) inject this context to read and write their values.
+  providers: [{ provide: LIST_TABLE_CONTEXT, useExisting: forwardRef(() => ListTable) }],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './list-table.html',
   styleUrl: './list-table.scss',
 })
-export class ListTable<T, F extends object = Record<never, never>> implements ListTableContexto {
+export class ListTable<T, F extends object = Record<never, never>> implements ListTableContext {
   private readonly config = inject(LIST_TABLE_CONFIG);
-  protected readonly textos = this.config.textos;
-  protected readonly iconeErro = ICONE_ERRO;
+  protected readonly texts = this.config.texts;
+  protected readonly errorIcon = ERROR_ICON;
 
-  // ── Entradas ──
-  readonly fonte = input.required<ListTableFonte<T, F>>();
-  readonly colunas = input.required<readonly ListTableColuna<T>[]>();
-  /** Filtros específicos da tela (ver models/filtros.ts). */
-  readonly filtros = input<CamposUrl<F>>(SEM_FILTROS as CamposUrl<F>);
-  readonly busca = input(true, { transform: booleanAttribute });
-  readonly ordenacao = input(true, { transform: booleanAttribute });
-  readonly paginacao = input(true, { transform: booleanAttribute });
-  /** Ordenação quando a URL não tem nenhuma. */
-  readonly ordenacaoPadrao = input<Ordenacao | null>(null);
-  readonly opcoesPorPagina = input<readonly number[]>(this.config.opcoesPorPagina);
-  readonly placeholderBusca = input(this.textos.buscaPlaceholder);
-  readonly mensagemVazia = input(this.textos.vazio);
-  readonly tituloErro = input(this.textos.erroTitulo);
-  /** Identidade de cada linha (repassada ao ui-data-table). */
-  readonly rastrearPor = input<Caminho<T> | ((linha: T) => unknown)>();
+  // ── Inputs ──
+  readonly source = input.required<ListTableSource<T, F>>();
+  readonly columns = input.required<readonly ListTableColumn<T>[]>();
+  /** The screen's specific filters (see models/filters.ts). */
+  readonly filters = input<UrlFields<F>>(NO_FILTERS as UrlFields<F>);
+  readonly search = input(true, { transform: booleanAttribute });
+  readonly sorting = input(true, { transform: booleanAttribute });
+  readonly pagination = input(true, { transform: booleanAttribute });
+  /** Sort used when the URL has none. */
+  readonly defaultSort = input<Sort | null>(null);
+  readonly pageSizeOptions = input<readonly number[]>(this.config.pageSizeOptions);
+  readonly searchPlaceholder = input(this.texts.searchPlaceholder);
+  readonly emptyMessage = input(this.texts.empty);
+  readonly errorTitle = input(this.texts.errorTitle);
+  /** Identity of each row (forwarded to ui-data-table). */
+  readonly trackBy = input<Caminho<T> | ((row: T) => unknown)>();
 
-  // ── Templates da tela, repassados ao ui-data-table (ele não os vê pelo <ng-content>) ──
-  protected readonly celulas = contentChildren(UiCelula);
-  private readonly cabecalhosDaTela = contentChildren(UiCabecalho);
+  // ── The screen's templates, forwarded to ui-data-table (it can't see them through <ng-content>) ──
+  protected readonly cells = contentChildren(UiCelula);
+  private readonly screenHeaders = contentChildren(UiCabecalho);
 
-  protected readonly colunasOrdenaveis = computed(() => {
-    if (!this.ordenacao()) return [];
-    return this.colunas()
-      .filter((coluna) => coluna.ordenavel)
-      .map((coluna) => ({ id: idDaColuna(coluna), titulo: coluna.titulo }));
+  protected readonly sortableColumns = computed(() => {
+    if (!this.sorting()) return [];
+    return this.columns()
+      .filter((column) => column.sortable)
+      .map((column) => ({ id: columnId(column), heading: column.titulo }));
   });
-  /** O cabeçalho de uma coluna ordenável é o botão de ordenar; os demais vêm da tela. */
-  protected readonly cabecalhos = computed(() => {
-    const ordenaveis = new Set(this.colunasOrdenaveis().map((coluna) => coluna.id));
-    return this.cabecalhosDaTela().filter((cabecalho) => !ordenaveis.has(cabecalho.uiCabecalho()));
+  /** A sortable column's header is the sort button; the others come from the screen. */
+  protected readonly headers = computed(() => {
+    const sortable = new Set(this.sortableColumns().map((column) => column.id));
+    return this.screenHeaders().filter((header) => !sortable.has(header.uiCabecalho()));
   });
 
-  // ── Hooks (estado na URL) ──
-  private readonly url = injectParametrosUrl();
-  private readonly estadoFiltros = injectFiltros(this.filtros, this.url);
-  protected readonly estadoBusca = injectBusca(this.url, {
-    param: this.config.params.busca,
-    habilitada: this.busca,
+  // ── Hooks (state in the URL) ──
+  private readonly url = injectUrlParams();
+  private readonly filtersState = injectFilters(this.filters, this.url);
+  protected readonly searchState = injectSearch(this.url, {
+    param: this.config.params.search,
+    enabled: this.search,
     debounceMs: this.config.debounceMs,
-    aplicar: (params, opcoes) => this.navegarParaPrimeiraPagina(params, opcoes),
+    apply: (params, options) => this.navigateToFirstPage(params, options),
   });
-  protected readonly estadoPaginacao = injectPaginacao(this.url, {
-    paramPagina: this.config.params.pagina,
-    paramPorPagina: this.config.params.porPagina,
-    habilitada: this.paginacao,
-    opcoesPorPagina: this.opcoesPorPagina,
+  protected readonly paginationState = injectPagination(this.url, {
+    pageParam: this.config.params.page,
+    pageSizeParam: this.config.params.pageSize,
+    enabled: this.pagination,
+    pageSizeOptions: this.pageSizeOptions,
   });
-  protected readonly estadoOrdenacao = injectOrdenacao(this.url, {
-    paramCampo: this.config.params.ordenarPor,
-    paramDirecao: this.config.params.direcao,
-    habilitada: this.ordenacao,
-    campos: () => this.colunasOrdenaveis().map((coluna) => coluna.id),
-    padrao: this.ordenacaoPadrao,
+  protected readonly sortingState = injectSorting(this.url, {
+    fieldParam: this.config.params.sortBy,
+    directionParam: this.config.params.sortDirection,
+    enabled: this.sorting,
+    fields: () => this.sortableColumns().map((column) => column.id),
+    defaultSort: this.defaultSort,
   });
 
-  /** Tudo o que a fonte recebe. Também é a chave do cache. */
-  readonly requisicao = computed<ListTableRequisicao<F>>(() => ({
-    filtros: this.estadoFiltros.valores(),
-    busca: this.estadoBusca.aplicada(),
-    paginacao: this.estadoPaginacao.estado(),
-    ordenacao: this.estadoOrdenacao.estado(),
+  /** Everything the source receives. Also the cache key. */
+  readonly request = computed<ListTableRequest<F>>(() => ({
+    filters: this.filtersState.values(),
+    search: this.searchState.applied(),
+    pagination: this.paginationState.state(),
+    sort: this.sortingState.state(),
   }));
 
-  protected readonly consulta = injectListQuery(this.fonte, this.requisicao);
+  protected readonly query = injectListQuery(this.source, this.request);
 
-  readonly temFiltro = computed(() => this.estadoFiltros.ativo() || this.estadoBusca.ativa());
+  readonly hasFilter = computed(() => this.filtersState.active() || this.searchState.active());
 
-  // ── API pública (contexto dos filtros e uso por template ref: #lista) ──
+  // ── Public API (context for the filters and use through a template ref: #list) ──
 
-  valorDoFiltro<V>(campo: CampoUrl<V>): V {
-    return lerCampo(campo, this.url.ler);
+  filterValue<V>(field: UrlField<V>): V {
+    return readField(field, this.url.read);
   }
 
-  aplicarFiltro<V>(campo: CampoUrl<V>, valor: V, opcoes?: OpcoesDeAplicacao): void {
-    this.navegarParaPrimeiraPagina({ [campo.param]: textoDoCampo(campo, valor) }, opcoes);
+  applyFilter<V>(field: UrlField<V>, value: V, options?: ApplyOptions): void {
+    this.navigateToFirstPage({ [field.param]: fieldToParam(field, value) }, options);
   }
 
-  /** Vários filtros de uma vez, com tipo: lista.aplicarFiltros({ status: 'pago' }). */
-  aplicarFiltros(mudancas: Partial<F>, opcoes?: OpcoesDeAplicacao): void {
-    this.navegarParaPrimeiraPagina(this.estadoFiltros.paraParams(mudancas), opcoes);
+  /** Several filters at once, typed: list.applyFilters({ status: 'paid' }). */
+  applyFilters(changes: Partial<F>, options?: ApplyOptions): void {
+    this.navigateToFirstPage(this.filtersState.toParams(changes), options);
   }
 
-  limparFiltros(): void {
-    this.estadoBusca.cancelar();
-    this.navegarParaPrimeiraPagina({
-      ...this.estadoFiltros.paramsDeLimpeza(),
-      ...this.estadoBusca.paramsDeLimpeza(),
+  clearFilters(): void {
+    this.searchState.cancel();
+    this.navigateToFirstPage({
+      ...this.filtersState.clearParams(),
+      ...this.searchState.clearParams(),
     });
   }
 
-  recarregar(): void {
-    this.consulta.refetch();
+  reload(): void {
+    this.query.refetch();
   }
 
-  // ── Eventos do template ──
+  // ── Template events ──
 
-  protected aoPesquisar(evento: SubmitEvent) {
-    evento.preventDefault(); // sem isso o navegador recarregaria a página
-    this.estadoBusca.aplicarAgora();
+  protected onSubmit(event: SubmitEvent) {
+    event.preventDefault(); // otherwise the browser would reload the page
+    this.searchState.applyNow();
   }
 
-  protected ordenarPor(campo: string) {
-    this.navegarParaPrimeiraPagina(this.estadoOrdenacao.paramsDoClique(campo));
+  protected sortBy(field: string) {
+    this.navigateToFirstPage(this.sortingState.clickParams(field));
   }
 
-  protected irParaPagina(pagina: number) {
-    this.url.escrever(this.estadoPaginacao.paramsDaPagina(pagina));
+  protected goToPage(page: number) {
+    this.url.write(this.paginationState.pageParams(page));
   }
 
-  protected mudarPorPagina(porPagina: number) {
-    this.url.escrever(this.estadoPaginacao.paramsDePorPagina(porPagina));
+  protected changePageSize(size: number) {
+    this.url.write(this.paginationState.pageSizeParams(size));
   }
 
-  /** Qualquer mudança no resultado (filtro, busca, ordenação) volta para a 1ª página. */
-  private navegarParaPrimeiraPagina(params: Params, opcoes?: OpcoesDeAplicacao) {
-    this.url.escrever({ ...params, ...this.estadoPaginacao.paramsDaPrimeiraPagina() }, opcoes);
+  /** Any change to the result (filter, search, sort) goes back to the first page. */
+  private navigateToFirstPage(params: Params, options?: ApplyOptions) {
+    this.url.write({ ...params, ...this.paginationState.firstPageParams() }, options);
   }
 }

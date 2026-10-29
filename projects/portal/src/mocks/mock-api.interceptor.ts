@@ -18,7 +18,7 @@ import {
   PRIMEIRA_PAGINA,
 } from '@features/catalogo';
 import { STATUS_PRODUTO, type StatusProduto } from '@features/produtos';
-import { DIRECAO_ORDENACAO } from '@shared/list-table';
+import { SORT_DIRECTION } from '@shared/list-table';
 import { lerCaminho } from '@supermercado/ui/data-table';
 import { delay, of, throwError } from 'rxjs';
 import { CATALOGO_DB } from './catalogo.db';
@@ -58,8 +58,8 @@ function numeroOuPadrao(valor: string | null, padrao: number): number {
 /** Multiplicador da comparação: crescente mantém, decrescente inverte. */
 const CRESCENTE = 1;
 const SINAL_DA_DIRECAO = new Map<string | null, number>([
-  [DIRECAO_ORDENACAO.crescente, CRESCENTE],
-  [DIRECAO_ORDENACAO.decrescente, -CRESCENTE],
+  [SORT_DIRECTION.asc, CRESCENTE],
+  [SORT_DIRECTION.desc, -CRESCENTE],
 ]);
 
 /** Ordena por um caminho do item ("estoque.quantidade"); sem caminho, mantém a ordem do banco. */

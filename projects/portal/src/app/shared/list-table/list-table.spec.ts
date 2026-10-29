@@ -8,88 +8,88 @@ import userEvent from '@testing-library/user-event';
 import { type Observable, of } from 'rxjs';
 import { injectListTableFilter } from './hooks/inject-list-table-filter';
 import {
-  type CampoUrl,
-  definirFiltro,
-  filtroBooleano,
-  filtroOpcoes,
-  type ListTableColuna,
-  type ListTableFonte,
+  booleanFilter,
+  defineFilter,
+  type FieldValues,
+  type ListTableColumn,
   ListTableImports,
-  type ListTableRequisicao,
-  type ListTableResultado,
+  type ListTableRequest,
+  type ListTableResult,
+  type ListTableSource,
+  optionsFilter,
   provideListTable,
-  type ValoresDosCampos,
+  type UrlField,
 } from './index';
 
-interface Pedido {
+interface Order {
   id: number;
-  cliente: string;
+  customer: string;
   total: number;
 }
 
-const PEDIDOS: Pedido[] = [
-  { id: 1, cliente: 'Ana', total: 10 },
-  { id: 2, cliente: 'Bruno', total: 20 },
+const ORDERS: Order[] = [
+  { id: 1, customer: 'Ana', total: 10 },
+  { id: 2, customer: 'Bruno', total: 20 },
 ];
 
-const STATUS = ['aberto', 'pago'] as const;
+const STATUS = ['open', 'paid'] as const;
 
-const FILTROS = {
-  status: filtroOpcoes('status', STATUS),
-  urgente: filtroBooleano('urgente'),
-  loja: definirFiltro({ param: 'loja', padrao: 0, ler: (texto) => Number(texto) || 0 }),
+const FILTERS = {
+  status: optionsFilter('status', STATUS),
+  urgent: booleanFilter('urgent'),
+  store: defineFilter({ param: 'store', defaultValue: 0, parse: (text) => Number(text) || 0 }),
 };
-type Filtros = ValoresDosCampos<typeof FILTROS>;
-type Resultado = ListTableResultado<Pedido>;
+type Filters = FieldValues<typeof FILTERS>;
+type Result = ListTableResult<Order>;
 
-const COLUNAS: ListTableColuna<Pedido>[] = [
+const COLUMNS: ListTableColumn<Order>[] = [
   { chave: 'id', titulo: '#' },
-  { chave: 'cliente', titulo: 'Cliente', ordenavel: true },
-  { chave: 'total', titulo: 'Total', ordenavel: true },
+  { chave: 'customer', titulo: 'Cliente', sortable: true },
+  { chave: 'total', titulo: 'Total', sortable: true },
 ];
 
-/** Um filtro "de fora", criado só com o hook público. */
+/** An "outside" filter, built only with the public hook. */
 @Component({
-  selector: 'app-filtro-loja',
+  selector: 'app-store-filter',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `<button type="button" (click)="loja.definir(7)">Loja {{ loja.valor() }}</button>`,
+  template: `<button type="button" (click)="store.set(7)">Loja {{ store.value() }}</button>`,
 })
-class FiltroLoja {
-  readonly filtro = input.required<CampoUrl<number>>();
-  protected readonly loja = injectListTableFilter(this.filtro);
+class StoreFilter {
+  readonly filter = input.required<UrlField<number>>();
+  protected readonly store = injectListTableFilter(this.filter);
 }
 
 @Component({
-  imports: [ListTableImports, FiltroLoja],
+  imports: [ListTableImports, StoreFilter],
   template: `
     <app-list-table
-      [fonte]="fonte"
-      [colunas]="colunas"
-      [filtros]="filtros"
-      [paginacao]="paginacao()"
-      [busca]="busca()"
+      [source]="source"
+      [columns]="columns"
+      [filters]="filters"
+      [pagination]="pagination()"
+      [search]="search()"
     >
-      <app-list-table-filtro-opcoes
-        rotulo="Status"
-        rotuloTodas="Todos"
-        [filtro]="filtros.status"
-        [opcoes]="status"
+      <app-list-table-options-filter
+        label="Status"
+        allLabel="Todos"
+        [filter]="filters.status"
+        [options]="status"
       />
-      <app-list-table-filtro-booleano rotulo="Urgente" [filtro]="filtros.urgente" />
-      <app-filtro-loja [filtro]="filtros.loja" />
+      <app-list-table-boolean-filter label="Urgente" [filter]="filters.urgent" />
+      <app-store-filter [filter]="filters.store" />
     </app-list-table>
   `,
 })
 class Host {
-  readonly buscar = vi.fn<(requisicao: ListTableRequisicao<Filtros>) => Observable<Resultado>>(() =>
-    of({ itens: PEDIDOS, total: 25, totalPaginas: 3 }),
+  readonly fetch = vi.fn<(request: ListTableRequest<Filters>) => Observable<Result>>(() =>
+    of({ items: ORDERS, total: 25, totalPages: 3 }),
   );
-  readonly fonte: ListTableFonte<Pedido, Filtros> = { chave: ['pedidos'], buscar: this.buscar };
-  readonly colunas = COLUNAS;
-  readonly filtros = FILTROS;
+  readonly source: ListTableSource<Order, Filters> = { key: ['orders'], fetch: this.fetch };
+  readonly columns = COLUMNS;
+  readonly filters = FILTERS;
   readonly status = STATUS;
-  readonly paginacao = signal(true);
-  readonly busca = signal(true);
+  readonly pagination = signal(true);
+  readonly search = signal(true);
 }
 
 describe('ListTable', () => {
@@ -97,9 +97,9 @@ describe('ListTable', () => {
   let harness: RouterTestingHarness;
   let host: Host;
 
-  async function abrir(url = '/pedidos') {
+  async function open(url = '/orders') {
     TestBed.configureTestingModule({
-      providers: [provideTestQueryClient(), provideRouter([{ path: 'pedidos', component: Host }])],
+      providers: [provideTestQueryClient(), provideRouter([{ path: 'orders', component: Host }])],
     });
     harness = await RouterTestingHarness.create();
     host = await harness.navigateByUrl(url, Host);
@@ -107,134 +107,134 @@ describe('ListTable', () => {
   }
 
   const url = () => TestBed.inject(Router).url;
-  const ultimaRequisicao = () => host.buscar.mock.calls[0][0];
-  const estavel = () => harness.fixture.whenStable();
+  const firstRequest = () => host.fetch.mock.calls[0][0];
+  const stable = () => harness.fixture.whenStable();
 
   afterEach(() => vi.useRealTimers());
 
-  it('já vem com busca, ordenação e paginação, e lê tudo da URL', async () => {
-    await abrir(
-      '/pedidos?q=ana&status=pago&urgente=true&loja=3&pagina=2&porPagina=20&ordenarPor=total&direcao=desc',
+  it('comes with search, sorting and pagination, and reads everything from the URL', async () => {
+    await open(
+      '/orders?q=ana&status=paid&urgent=true&store=3&page=2&pageSize=20&sortBy=total&sortDirection=desc',
     );
-    expect(ultimaRequisicao()).toEqual({
-      filtros: { status: 'pago', urgente: true, loja: 3 },
-      busca: 'ana',
-      paginacao: { pagina: 2, porPagina: 20 },
-      ordenacao: { campo: 'total', direcao: 'desc' },
+    expect(firstRequest()).toEqual({
+      filters: { status: 'paid', urgent: true, store: 3 },
+      search: 'ana',
+      pagination: { page: 2, pageSize: 20 },
+      sort: { field: 'total', direction: 'desc' },
     });
     expect(screen.getByLabelText('Pesquisar')).toHaveValue('ana');
-    expect(screen.getByLabelText('Status')).toHaveValue('pago');
+    expect(screen.getByLabelText('Status')).toHaveValue('paid');
     expect(screen.getByLabelText('Urgente')).toBeChecked();
     expect(screen.getByRole('button', { name: 'Página 3' })).toBeInTheDocument();
   });
 
-  it('troca valores inválidos da URL pelo padrão', async () => {
-    await abrir('/pedidos?status=xyz&pagina=-2&porPagina=999&ordenarPor=id&direcao=xyz');
-    expect(ultimaRequisicao()).toEqual({
-      filtros: { status: '', urgente: false, loja: 0 },
-      busca: '',
-      paginacao: { pagina: 1, porPagina: 10 },
-      ordenacao: null, // "id" não é ordenável
+  it('replaces invalid URL values with the defaults', async () => {
+    await open('/orders?status=xyz&page=-2&pageSize=999&sortBy=id&sortDirection=xyz');
+    expect(firstRequest()).toEqual({
+      filters: { status: '', urgent: false, store: 0 },
+      search: '',
+      pagination: { page: 1, pageSize: 10 },
+      sort: null, // "id" is not sortable
     });
   });
 
-  it('busca com debounce, substituindo o histórico', async () => {
-    await abrir();
+  it('debounces the search, replacing history', async () => {
+    await open();
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    const campo = screen.getByLabelText('Pesquisar');
-    await user.type(campo, 'bru');
-    expect(url()).toBe('/pedidos'); // ainda não
+    const field = screen.getByLabelText('Pesquisar');
+    await user.type(field, 'bru');
+    expect(url()).toBe('/orders'); // not yet
     await vi.advanceTimersByTimeAsync(300);
     vi.useRealTimers();
-    await estavel();
-    expect(url()).toBe('/pedidos?q=bru');
+    await stable();
+    expect(url()).toBe('/orders?q=bru');
   });
 
-  it('Enter pesquisa na hora e não apaga o espaço que o usuário digitou', async () => {
-    await abrir();
+  it('Enter searches right away and keeps the space the user typed', async () => {
+    await open();
     await user.type(screen.getByLabelText('Pesquisar'), 'bruno {Enter}');
-    await vi.waitFor(() => expect(url()).toBe('/pedidos?q=bruno'));
+    await vi.waitFor(() => expect(url()).toBe('/orders?q=bruno'));
     expect(screen.getByLabelText('Pesquisar')).toHaveValue('bruno ');
   });
 
-  it('trocar um filtro (pronto ou criado com o hook) volta para a página 1', async () => {
-    await abrir('/pedidos?pagina=3');
-    await user.selectOptions(screen.getByLabelText('Status'), 'aberto');
-    await vi.waitFor(() => expect(url()).toBe('/pedidos?status=aberto'));
+  it('changing a filter (built-in or built with the hook) goes back to page 1', async () => {
+    await open('/orders?page=3');
+    await user.selectOptions(screen.getByLabelText('Status'), 'open');
+    await vi.waitFor(() => expect(url()).toBe('/orders?status=open'));
 
     await user.click(screen.getByRole('button', { name: 'Loja 0' }));
-    await vi.waitFor(() => expect(url()).toBe('/pedidos?status=aberto&loja=7'));
+    await vi.waitFor(() => expect(url()).toBe('/orders?status=open&store=7'));
     expect(screen.getByRole('button', { name: 'Loja 7' })).toBeInTheDocument();
   });
 
-  it('ordena pelo cabeçalho: crescente → decrescente → sem ordenação', async () => {
-    await abrir('/pedidos?pagina=2');
-    const ordenarPorTotal = () => screen.getByRole('button', { name: 'Ordenar por Total' });
+  it('sorts by header: ascending → descending → unsorted', async () => {
+    await open('/orders?page=2');
+    const sortByTotal = () => screen.getByRole('button', { name: 'Ordenar por Total' });
 
-    await user.click(ordenarPorTotal());
-    await vi.waitFor(() => expect(url()).toBe('/pedidos?ordenarPor=total&direcao=asc'));
-    expect(ordenarPorTotal()).toHaveAttribute('data-direcao', 'asc');
+    await user.click(sortByTotal());
+    await vi.waitFor(() => expect(url()).toBe('/orders?sortBy=total&sortDirection=asc'));
+    expect(sortByTotal()).toHaveAttribute('data-direction', 'asc');
 
-    await user.click(ordenarPorTotal());
-    await vi.waitFor(() => expect(url()).toBe('/pedidos?ordenarPor=total&direcao=desc'));
+    await user.click(sortByTotal());
+    await vi.waitFor(() => expect(url()).toBe('/orders?sortBy=total&sortDirection=desc'));
 
-    await user.click(ordenarPorTotal());
-    await vi.waitFor(() => expect(url()).toBe('/pedidos'));
-    expect(ordenarPorTotal()).not.toHaveAttribute('data-direcao');
+    await user.click(sortByTotal());
+    await vi.waitFor(() => expect(url()).toBe('/orders'));
+    expect(sortByTotal()).not.toHaveAttribute('data-direction');
   });
 
-  it('paginação: troca a página e os itens por página na URL', async () => {
-    await abrir();
+  it('pagination: changes page and page size in the URL', async () => {
+    await open();
     await user.click(screen.getByRole('button', { name: 'Página 3' }));
-    await vi.waitFor(() => expect(url()).toBe('/pedidos?pagina=3'));
+    await vi.waitFor(() => expect(url()).toBe('/orders?page=3'));
     await user.selectOptions(screen.getByLabelText('Itens por página'), '50');
-    await vi.waitFor(() => expect(url()).toBe('/pedidos?porPagina=50'));
+    await vi.waitFor(() => expect(url()).toBe('/orders?pageSize=50'));
   });
 
-  it('pré-carrega a próxima página', async () => {
-    await abrir();
+  it('prefetches the next page', async () => {
+    await open();
     await vi.waitFor(() =>
-      expect(host.buscar.mock.calls.map(([r]) => r.paginacao?.pagina)).toEqual([1, 2]),
+      expect(host.fetch.mock.calls.map(([request]) => request.pagination?.page)).toEqual([1, 2]),
     );
   });
 
-  it('Limpar tira busca e filtros, mas mantém os itens por página', async () => {
-    await abrir('/pedidos?q=ana&status=pago&pagina=2&porPagina=50');
+  it('Clear removes search and filters, but keeps the page size', async () => {
+    await open('/orders?q=ana&status=paid&page=2&pageSize=50');
     await user.click(screen.getByRole('button', { name: 'Limpar' }));
-    await vi.waitFor(() => expect(url()).toBe('/pedidos?porPagina=50'));
+    await vi.waitFor(() => expect(url()).toBe('/orders?pageSize=50'));
     expect(screen.getByLabelText('Pesquisar')).toHaveValue('');
     expect(screen.queryByRole('button', { name: 'Limpar' })).not.toBeInTheDocument();
   });
 
-  it('desliga paginação e busca', async () => {
-    await abrir('/pedidos?pagina=2&q=ana');
-    host.paginacao.set(false);
-    host.busca.set(false);
-    await estavel();
+  it('turns pagination and search off', async () => {
+    await open('/orders?page=2&q=ana');
+    host.pagination.set(false);
+    host.search.set(false);
+    await stable();
 
     expect(screen.queryByRole('navigation', { name: 'Paginação' })).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Itens por página')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Pesquisar')).not.toBeInTheDocument();
     await vi.waitFor(() =>
-      expect(host.buscar).toHaveBeenLastCalledWith(
-        expect.objectContaining({ paginacao: null, busca: '' }),
+      expect(host.fetch).toHaveBeenLastCalledWith(
+        expect.objectContaining({ pagination: null, search: '' }),
       ),
     );
   });
 
-  it('mostra as linhas e o total', async () => {
-    await abrir();
-    const [, primeira] = screen.getAllByRole('row');
-    expect(within(primeira).getByText('Ana')).toBeInTheDocument();
+  it('shows the rows and the total', async () => {
+    await open();
+    const [, first] = screen.getAllByRole('row');
+    expect(within(first).getByText('Ana')).toBeInTheDocument();
     expect(screen.getByText('25 item(ns)')).toBeInTheDocument();
   });
 
-  it('provideListTable troca nomes de parâmetro e textos', async () => {
+  it('provideListTable overrides parameter names and texts', async () => {
     TestBed.configureTestingModule({
-      providers: [provideListTable({ params: { busca: 'termo' }, textos: { busca: 'Buscar' } })],
+      providers: [provideListTable({ params: { search: 'term' }, texts: { search: 'Buscar' } })],
     });
-    await abrir('/pedidos?termo=ana');
-    expect(ultimaRequisicao().busca).toBe('ana');
+    await open('/orders?term=ana');
+    expect(firstRequest().search).toBe('ana');
     expect(screen.getByLabelText('Buscar')).toHaveValue('ana');
   });
 });

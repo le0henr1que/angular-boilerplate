@@ -6,32 +6,32 @@
   gap: 1.5rem;
 }
 
-/* ── Filtros: empilhados no celular, lado a lado (alinhados pela base) em telas largas ── */
-.filtros {
+/* ── Filters: stacked on phones, side by side (aligned at the bottom) on wide screens ── */
+.filters {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
 }
 
 @include b2b-breakpoint('md') {
-  .filtros {
+  .filters {
     flex-direction: row;
     flex-wrap: wrap;
     align-items: flex-end;
   }
 
-  .busca {
+  .search {
     flex: 1;
     min-width: 14rem;
   }
 }
 
-/* ── Estados ── */
-.tentar-de-novo {
+/* ── States ── */
+.retry {
   margin-top: 0.5rem;
 }
 
-.contagem {
+.count {
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -40,7 +40,7 @@
   font-size: var(--text-sm);
 }
 
-.desatualizada {
+.stale {
   opacity: 0.5;
   transition: opacity var(--transition);
 }

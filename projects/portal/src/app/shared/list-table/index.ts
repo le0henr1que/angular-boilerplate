@@ -1,57 +1,48 @@
-// API pública da list-table. Fora desta pasta, importe sempre de '@shared/list-table'.
-import { ListTableFiltroBooleano } from './components/filtros/list-table-filtro-booleano/list-table-filtro-booleano';
-import { ListTableFiltroOpcoes } from './components/filtros/list-table-filtro-opcoes/list-table-filtro-opcoes';
+// Public API of the list-table. Outside this folder, always import from '@shared/list-table'.
+import { ListTableBooleanFilter } from './components/filters/list-table-boolean-filter/list-table-boolean-filter';
+import { ListTableOptionsFilter } from './components/filters/list-table-options-filter/list-table-options-filter';
 import { ListTable } from './list-table';
 
-export { ListTableFiltroBooleano } from './components/filtros/list-table-filtro-booleano/list-table-filtro-booleano';
-export { ListTableFiltroOpcoes } from './components/filtros/list-table-filtro-opcoes/list-table-filtro-opcoes';
+export { ListTableBooleanFilter } from './components/filters/list-table-boolean-filter/list-table-boolean-filter';
+export { ListTableOptionsFilter } from './components/filters/list-table-options-filter/list-table-options-filter';
 export { injectListTableFilter } from './hooks/inject-list-table-filter';
 export { ListTable } from './list-table';
 export {
+  DEFAULT_LIST_TABLE_CONFIG,
   LIST_TABLE_CONFIG,
-  LIST_TABLE_CONFIG_PADRAO,
   type ListTableConfig,
-  type ListTableConfigParcial,
+  type ListTableConfigOverrides,
   type ListTableParams,
-  type ListTableTextos,
+  type ListTableTexts,
   provideListTable,
 } from './list-table.config';
+export { type ApplyOptions, LIST_TABLE_CONTEXT, type ListTableContext } from './list-table.context';
 export {
-  LIST_TABLE_CONTEXTO,
-  type ListTableContexto,
-  type OpcoesDeAplicacao,
-} from './list-table.context';
+  ALL_OPTIONS,
+  type AllOptions,
+  booleanFilter,
+  defineFilter,
+  numberFilter,
+  optionsFilter,
+  textFilter,
+  TRUE_PARAM,
+} from './models/filters';
 export {
-  type CampoUrl,
-  type CamposUrl,
-  SEM_VALOR,
-  type ValoresDosCampos,
-} from './models/campo-url';
-export {
-  definirFiltro,
-  filtroBooleano,
-  filtroNumero,
-  filtroOpcoes,
-  filtroTexto,
-  PARAM_LIGADO,
-  TODAS_AS_OPCOES,
-  type TodasAsOpcoes,
-} from './models/filtros';
-export {
-  DIRECAO_ORDENACAO,
-  type DirecaoOrdenacao,
-  type ListTableColuna,
-  type ListTableFonte,
-  type ListTableRequisicao,
-  type ListTableResultado,
-  type Ordenacao,
-  type Paginacao,
-  PRIMEIRA_PAGINA,
+  FIRST_PAGE,
+  type ListTableColumn,
+  type ListTableRequest,
+  type ListTableResult,
+  type ListTableSource,
+  type Pagination,
+  type Sort,
+  SORT_DIRECTION,
+  type SortDirection,
 } from './models/list-table.models';
+export { type FieldValues, NO_VALUE, type UrlField, type UrlFields } from './models/url-field';
 
-/** O container e os filtros prontos: imports: [ListTableImports, UiDataTableImports]. */
+/** The container and the ready-made filters: imports: [ListTableImports, UiDataTableImports]. */
 export const ListTableImports = [
   ListTable,
-  ListTableFiltroOpcoes,
-  ListTableFiltroBooleano,
+  ListTableOptionsFilter,
+  ListTableBooleanFilter,
 ] as const;

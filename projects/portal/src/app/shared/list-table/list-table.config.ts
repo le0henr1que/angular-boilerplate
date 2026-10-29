@@ -1,87 +1,88 @@
 import { InjectionToken, type Provider } from '@angular/core';
 
-/** Nome de cada parte padrão da list-table na query string. */
+/** Query string name of each built-in part of the list-table. */
 export interface ListTableParams {
-  busca: string;
-  pagina: string;
-  porPagina: string;
-  ordenarPor: string;
-  direcao: string;
+  search: string;
+  page: string;
+  pageSize: string;
+  sortBy: string;
+  sortDirection: string;
 }
 
-export interface ListTableTextos {
-  busca: string;
-  buscaPlaceholder: string;
-  limpar: string;
-  itensPorPagina: string;
-  atualizando: string;
-  vazio: string;
-  erroTitulo: string;
-  erroDescricao: string;
-  tentarDeNovo: string;
+/** Text shown to the user (the app's language, not the code's). */
+export interface ListTableTexts {
+  search: string;
+  searchPlaceholder: string;
+  clear: string;
+  pageSize: string;
+  refreshing: string;
+  empty: string;
+  errorTitle: string;
+  errorDescription: string;
+  retry: string;
   total: (total: number) => string;
-  ordenarPor: (coluna: string) => string;
+  sortBy: (column: string) => string;
 }
 
 export interface ListTableConfig {
   params: ListTableParams;
-  textos: ListTableTextos;
-  /** A primeira é o padrão. */
-  opcoesPorPagina: readonly number[];
-  /** Espera depois da última tecla antes de buscar. */
+  texts: ListTableTexts;
+  /** The first one is the default. */
+  pageSizeOptions: readonly number[];
+  /** Wait after the last keystroke before searching. */
   debounceMs: number;
 }
 
-export const LIST_TABLE_CONFIG_PADRAO: ListTableConfig = {
+export const DEFAULT_LIST_TABLE_CONFIG: ListTableConfig = {
   params: {
-    busca: 'q',
-    pagina: 'pagina',
-    porPagina: 'porPagina',
-    ordenarPor: 'ordenarPor',
-    direcao: 'direcao',
+    search: 'q',
+    page: 'page',
+    pageSize: 'pageSize',
+    sortBy: 'sortBy',
+    sortDirection: 'sortDirection',
   },
-  textos: {
-    busca: 'Pesquisar',
-    buscaPlaceholder: 'Pesquisar…',
-    limpar: 'Limpar',
-    itensPorPagina: 'Itens por página',
-    atualizando: 'Atualizando…',
-    vazio: 'Nenhum registro encontrado.',
-    erroTitulo: 'Não foi possível carregar os dados',
-    erroDescricao: 'Verifique sua conexão e tente de novo.',
-    tentarDeNovo: 'Tentar de novo',
+  texts: {
+    search: 'Pesquisar',
+    searchPlaceholder: 'Pesquisar…',
+    clear: 'Limpar',
+    pageSize: 'Itens por página',
+    refreshing: 'Atualizando…',
+    empty: 'Nenhum registro encontrado.',
+    errorTitle: 'Não foi possível carregar os dados',
+    errorDescription: 'Verifique sua conexão e tente de novo.',
+    retry: 'Tentar de novo',
     total: (total) => `${total} item(ns)`,
-    ordenarPor: (coluna) => `Ordenar por ${coluna}`,
+    sortBy: (column) => `Ordenar por ${column}`,
   },
-  opcoesPorPagina: [10, 20, 50],
+  pageSizeOptions: [10, 20, 50],
   debounceMs: 300,
 };
 
 export const LIST_TABLE_CONFIG = new InjectionToken<ListTableConfig>('LIST_TABLE_CONFIG', {
-  factory: () => LIST_TABLE_CONFIG_PADRAO,
+  factory: () => DEFAULT_LIST_TABLE_CONFIG,
 });
 
-export interface ListTableConfigParcial {
+export interface ListTableConfigOverrides {
   params?: Partial<ListTableParams>;
-  textos?: Partial<ListTableTextos>;
-  opcoesPorPagina?: readonly number[];
+  texts?: Partial<ListTableTexts>;
+  pageSizeOptions?: readonly number[];
   debounceMs?: number;
 }
 
 /**
- * Troca os padrões da list-table. No app.config.ts vale para o app inteiro; nos `providers`
- * de um componente, só para as list-tables dentro dele.
+ * Overrides the list-table defaults. In app.config.ts it applies to the whole app; in a
+ * component's `providers`, only to the list-tables inside it.
  *
- *   providers: [provideListTable({ params: { busca: 'termo' }, textos: { vazio: 'Nada aqui.' } })]
+ *   providers: [provideListTable({ params: { search: 'term' }, texts: { empty: 'Nada aqui.' } })]
  */
-export function provideListTable(config: ListTableConfigParcial): Provider {
+export function provideListTable(overrides: ListTableConfigOverrides): Provider {
   return {
     provide: LIST_TABLE_CONFIG,
     useValue: {
-      ...LIST_TABLE_CONFIG_PADRAO,
-      ...config,
-      params: { ...LIST_TABLE_CONFIG_PADRAO.params, ...config.params },
-      textos: { ...LIST_TABLE_CONFIG_PADRAO.textos, ...config.textos },
+      ...DEFAULT_LIST_TABLE_CONFIG,
+      ...overrides,
+      params: { ...DEFAULT_LIST_TABLE_CONFIG.params, ...overrides.params },
+      texts: { ...DEFAULT_LIST_TABLE_CONFIG.texts, ...overrides.texts },
     } satisfies ListTableConfig,
   };
 }

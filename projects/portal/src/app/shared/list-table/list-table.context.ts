@@ -1,24 +1,24 @@
 import { InjectionToken, type Signal } from '@angular/core';
-import { type CampoUrl } from './models/campo-url';
+import { type UrlField } from './models/url-field';
 
-export interface OpcoesDeAplicacao {
-  /** true: troca a entrada atual do histórico em vez de criar outra (ex.: enquanto digita). */
-  substituirHistorico?: boolean;
+export interface ApplyOptions {
+  /** true: replaces the current history entry instead of adding one (e.g. while typing). */
+  replaceHistory?: boolean;
 }
 
 /**
- * O que a list-table oferece para os filtros projetados nela (os "children").
- * É uma abstração: os filtros dependem deste contrato, não do componente.
+ * What the list-table offers to the filters projected into it (its "children").
+ * It is an abstraction: filters depend on this contract, not on the component.
  */
-export interface ListTableContexto {
-  /** Valor atual do filtro (lê signals: reativo dentro de computed/template). */
-  valorDoFiltro<V>(campo: CampoUrl<V>): V;
-  /** Grava o filtro na URL e volta para a primeira página. */
-  aplicarFiltro<V>(campo: CampoUrl<V>, valor: V, opcoes?: OpcoesDeAplicacao): void;
-  /** Algum filtro (ou a busca) diferente do padrão. */
-  readonly temFiltro: Signal<boolean>;
-  limparFiltros(): void;
+export interface ListTableContext {
+  /** Current filter value (reads signals: reactive inside computed/template). */
+  filterValue<V>(field: UrlField<V>): V;
+  /** Writes the filter to the URL and goes back to the first page. */
+  applyFilter<V>(field: UrlField<V>, value: V, options?: ApplyOptions): void;
+  /** Some filter (or the search) differs from its default. */
+  readonly hasFilter: Signal<boolean>;
+  clearFilters(): void;
 }
 
-/** Fornecido pela própria app-list-table; só existe dentro dela. */
-export const LIST_TABLE_CONTEXTO = new InjectionToken<ListTableContexto>('LIST_TABLE_CONTEXTO');
+/** Provided by app-list-table itself; only exists inside it. */
+export const LIST_TABLE_CONTEXT = new InjectionToken<ListTableContext>('LIST_TABLE_CONTEXT');

@@ -1,6 +1,6 @@
 import { CurrencyPipe } from '@angular/common';
 import { ChangeDetectionStrategy, Component } from '@angular/core';
-import { ListTableImports, type ListTableColuna } from '@shared/list-table';
+import { type ListTableColumn, ListTableImports, provideListTable } from '@shared/list-table';
 import { UiBadge } from '@supermercado/ui/badge';
 import { UiDataTableImports } from '@supermercado/ui/data-table';
 import { injectFonteCatalogo } from '../../data-access/catalogo.queries';
@@ -10,6 +10,7 @@ import {
   FILTROS_CATALOGO,
   type ItemCatalogo,
   OPCOES_POR_PAGINA,
+  PARAMS_LIST_TABLE_CATALOGO,
 } from '../../models/item-catalogo.model';
 
 /** Colunas com template próprio (uiCelula): a mesma chave na definição e no HTML. */
@@ -25,6 +26,8 @@ const COLUNA = {
 @Component({
   selector: 'app-catalogo-page',
   imports: [CurrencyPipe, ListTableImports, UiBadge, UiDataTableImports],
+  // A URL da tela usa os mesmos nomes de parâmetro da API (?pagina=&porPagina=&ordenarPor=...).
+  providers: [provideListTable({ params: PARAMS_LIST_TABLE_CATALOGO })],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './catalogo-page.html',
   styleUrl: './catalogo-page.scss',
@@ -38,16 +41,16 @@ export default class CatalogoPage {
   protected readonly estoqueBaixo = estaComEstoqueBaixo;
 
   /** Cada coluna lê um caminho do objeto da API, inclusive aninhado ("fornecedor.nome"). */
-  protected readonly colunas: ListTableColuna<ItemCatalogo>[] = [
+  protected readonly colunas: ListTableColumn<ItemCatalogo>[] = [
     { chave: 'id', titulo: '#', largura: '4rem' },
-    { chave: 'nome', titulo: 'Produto', ordenavel: true },
-    { chave: 'categoria.nome', titulo: 'Categoria', ordenavel: true },
+    { chave: 'nome', titulo: 'Produto', sortable: true },
+    { chave: 'categoria.nome', titulo: 'Categoria', sortable: true },
     {
       chave: 'fornecedor.nome',
       titulo: 'Fornecedor',
       formatar: (nome, item) => `${nome} (${item.fornecedor.cidade})`,
     },
-    { chave: COLUNA.preco, titulo: 'Preço', alinhar: 'direita', ordenavel: true },
-    { chave: COLUNA.estoque, titulo: 'Estoque', alinhar: 'direita', ordenavel: true },
+    { chave: COLUNA.preco, titulo: 'Preço', alinhar: 'direita', sortable: true },
+    { chave: COLUNA.estoque, titulo: 'Estoque', alinhar: 'direita', sortable: true },
   ];
 }

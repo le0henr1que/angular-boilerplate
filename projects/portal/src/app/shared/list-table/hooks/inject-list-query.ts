@@ -7,55 +7,55 @@ import {
 } from '@tanstack/angular-query-experimental';
 import { fromEvent, isObservable, lastValueFrom, takeUntil } from 'rxjs';
 import {
-  type ListTableFonte,
-  type ListTableRequisicao,
-  type ListTableResultado,
+  type ListTableRequest,
+  type ListTableResult,
+  type ListTableSource,
 } from '../models/list-table.models';
 
-/** Evento do AbortSignal disparado quando o TanStack cancela a consulta. */
-const EVENTO_ABORTAR = 'abort';
+/** AbortSignal event fired when TanStack cancels the query. */
+const ABORT_EVENT = 'abort';
 
-function opcoesDaConsulta<T, F>(fonte: ListTableFonte<T, F>, requisicao: ListTableRequisicao<F>) {
+function listQueryOptions<T, F>(source: ListTableSource<T, F>, request: ListTableRequest<F>) {
   return queryOptions({
-    queryKey: [...fonte.chave, requisicao],
-    // Se a requisição mudar antes da resposta, a antiga é cancelada (o HttpClient aborta).
-    queryFn: ({ signal }): Promise<ListTableResultado<T>> => {
-      const resposta = fonte.buscar(requisicao);
-      if (isObservable(resposta)) {
-        return lastValueFrom(resposta.pipe(takeUntil(fromEvent(signal, EVENTO_ABORTAR))));
+    queryKey: [...source.key, request],
+    // If the request changes before the response arrives, the old one is cancelled (HttpClient aborts).
+    queryFn: ({ signal }): Promise<ListTableResult<T>> => {
+      const response = source.fetch(request);
+      if (isObservable(response)) {
+        return lastValueFrom(response.pipe(takeUntil(fromEvent(signal, ABORT_EVENT))));
       }
-      return resposta;
+      return response;
     },
   });
 }
 
 /**
- * "Hook" da consulta da list-table no TanStack Query:
- *  - cada requisição (filtros + busca + página + ordenação) é uma entrada própria no cache;
- *  - keepPreviousData: enquanto a nova carrega, a anterior continua na tela;
- *  - com paginação, pré-carrega a PRÓXIMA página assim que a atual chega.
+ * The list-table's TanStack Query "hook":
+ *  - each request (filters + search + page + sort) is its own cache entry;
+ *  - keepPreviousData: while the new one loads, the previous one stays on screen;
+ *  - with pagination, prefetches the NEXT page as soon as the current one arrives.
  */
 export function injectListQuery<T, F>(
-  fonte: () => ListTableFonte<T, F>,
-  requisicao: () => ListTableRequisicao<F>,
+  source: () => ListTableSource<T, F>,
+  request: () => ListTableRequest<F>,
 ) {
   const queryClient = inject(QueryClient);
 
   const query = injectQuery(() => ({
-    ...opcoesDaConsulta(fonte(), requisicao()),
+    ...listQueryOptions(source(), request()),
     placeholderData: keepPreviousData,
   }));
 
   effect(() => {
-    const resultado = query.data();
-    const atual = requisicao();
-    if (!resultado || query.isPlaceholderData() || !atual.paginacao) return;
-    if (atual.paginacao.pagina >= resultado.totalPaginas) return;
-    const proxima = {
-      ...atual,
-      paginacao: { ...atual.paginacao, pagina: atual.paginacao.pagina + 1 },
+    const result = query.data();
+    const current = request();
+    if (!result || query.isPlaceholderData() || !current.pagination) return;
+    if (current.pagination.page >= result.totalPages) return;
+    const next = {
+      ...current,
+      pagination: { ...current.pagination, page: current.pagination.page + 1 },
     };
-    untracked(() => queryClient.prefetchQuery(opcoesDaConsulta(fonte(), proxima)));
+    untracked(() => queryClient.prefetchQuery(listQueryOptions(source(), next)));
   });
 
   return query;

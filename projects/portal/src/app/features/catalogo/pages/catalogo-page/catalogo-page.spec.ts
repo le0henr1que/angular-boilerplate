@@ -40,12 +40,12 @@ const ITENS: ItemCatalogo[] = [
 class OutraPagina {}
 
 /** Resposta da API: a página pedida com os ITENS, num total de 3 páginas. */
-const responder = ({ paginacao }: RequisicaoCatalogo) =>
+const responder = ({ pagination }: RequisicaoCatalogo) =>
   of<PaginaCatalogo>({
     itens: ITENS,
     total: 25,
-    pagina: paginacao?.pagina ?? 1,
-    porPagina: paginacao?.porPagina ?? 10,
+    pagina: pagination?.page ?? 1,
+    porPagina: pagination?.pageSize ?? 10,
     totalPaginas: 3,
   });
 
@@ -93,10 +93,10 @@ describe('CatalogoPage', () => {
     expect(celulas[4]).toMatch(/R\$\s7,99/);
     expect(screen.getByText(/25 item\(ns\)/)).toBeInTheDocument();
     expect(chamadas()[0]).toEqual({
-      filtros: { categoria: '', estoqueBaixo: false },
-      busca: '',
-      paginacao: { pagina: 1, porPagina: 10 },
-      ordenacao: null,
+      filters: { categoria: '', estoqueBaixo: false },
+      search: '',
+      pagination: { page: 1, pageSize: 10 },
+      sort: null,
     });
   });
 
@@ -111,17 +111,17 @@ describe('CatalogoPage', () => {
   it('pré-carrega a próxima página assim que a atual chega', async () => {
     await abrir();
     await screen.findByText('Banana prata (kg)');
-    await vi.waitFor(() => expect(chamadas().map((r) => r.paginacao?.pagina)).toEqual([1, 2]));
+    await vi.waitFor(() => expect(chamadas().map((r) => r.pagination?.page)).toEqual([1, 2]));
   });
 
   it('manda os filtros da URL para a API', async () => {
     await abrir('/catalogo?q=cafe&categoria=Bebidas&estoqueBaixo=true&pagina=2');
     await screen.findByText('Banana prata (kg)');
     expect(chamadas()[0]).toEqual({
-      filtros: { categoria: 'Bebidas', estoqueBaixo: true },
-      busca: 'cafe',
-      paginacao: { pagina: 2, porPagina: 10 },
-      ordenacao: null,
+      filters: { categoria: 'Bebidas', estoqueBaixo: true },
+      search: 'cafe',
+      pagination: { page: 2, pageSize: 10 },
+      sort: null,
     });
     expect(screen.getByLabelText('Pesquisar')).toHaveValue('cafe');
     expect(screen.getByLabelText('Categoria')).toHaveValue('Bebidas');
@@ -133,7 +133,7 @@ describe('CatalogoPage', () => {
     await screen.findByText('Banana prata (kg)');
     await user.type(screen.getByLabelText('Pesquisar'), 'cafe{Enter}');
     await vi.waitFor(() => expect(url()).toBe('/catalogo?q=cafe'));
-    await vi.waitFor(() => expect(chamadas().some((r) => r.busca === 'cafe')).toBe(true));
+    await vi.waitFor(() => expect(chamadas().some((r) => r.search === 'cafe')).toBe(true));
   });
 
   it('categoria e estoque baixo filtram e voltam para a página 1', async () => {
@@ -151,7 +151,7 @@ describe('CatalogoPage', () => {
     await user.click(screen.getByRole('button', { name: 'Ordenar por Preço' }));
     await vi.waitFor(() => expect(url()).toBe('/catalogo?ordenarPor=preco&direcao=asc'));
     await vi.waitFor(() =>
-      expect(chamadas().some((r) => r.ordenacao?.campo === 'preco')).toBe(true),
+      expect(chamadas().some((r) => r.sort?.field === 'preco')).toBe(true),
     );
   });
 

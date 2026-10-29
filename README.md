@@ -141,4 +141,5 @@ Outros guias:
 
 - [docs/configurar-testes.md](docs/configurar-testes.md): Vitest + Angular Testing Library
 - [docs/roteamento.md](docs/roteamento.md): rotas com gates, lazy load e performance de render
+- [docs/list-table.md](docs/list-table.md): list-table usage (search, filters, sorting and pagination in the URL)
 - [docs/autenticacao-cookie.md](docs/autenticacao-cookie.md): login por cookie (mock hoje, Azure AD depois) e feature flags
