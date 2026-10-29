@@ -1,5 +1,8 @@
-export { Auth, destinoInterno } from './auth';
+export { Auth } from './auth';
+export * from './auth.constants';
+export * from './auth.enums';
+export * from './auth.types';
+export * from './auth.utils';
+export { guestOnly, mockLoginOnly, requireLogin, requireRole } from './guards/auth.guards';
 export { authInterceptor } from './http/auth.interceptor';
-export { apenasLoginSimulado, apenasVisitante, exigeLogin, exigePapel } from './guards/auth.guards';
 export { provideAuth } from './provide-auth';
-export { type Papel, type Usuario } from './usuario';

@@ -1,0 +1,48 @@
+<section class="page">
+  <header class="page-title">
+    <h1>Ecossistema</h1>
+    <p>Empresas parceiras do supermercado: fornecedores, logística, pagamentos e marketing.</p>
+  </header>
+
+  <app-list-table
+    [source]="source"
+    [columns]="columns"
+    [filters]="filters"
+    [pageSizeOptions]="pageSizeOptions"
+    [defaultSort]="defaultSort"
+    searchPlaceholder="Parceiro, contato ou cidade"
+    errorTitle="Não foi possível carregar o ecossistema"
+    emptyMessage="Nenhum parceiro encontrado com esses filtros."
+  >
+    <!-- Specific filters (children): search, "Limpar", sorting and pagination are built in. -->
+    <app-list-table-options-filter
+      class="type-field"
+      label="Tipo"
+      [allLabel]="allTypesLabel"
+      [filter]="filters.type"
+      [options]="partnerTypes"
+      [optionLabel]="typeLabel"
+    />
+    <app-list-table-boolean-filter label="Só parceiros ativos" [filter]="filters.activeOnly" />
+
+    <ng-template [uiCell]="column.type" let-type>
+      <app-partner-type-badge [type]="type" />
+    </ng-template>
+    <ng-template [uiCell]="column.contact" let-name let-partner="row">
+      <span class="contact">
+        {{ name }}
+        <a class="email" [href]="'mailto:' + partner.contact.email">{{ partner.contact.email }}</a>
+      </span>
+    </ng-template>
+    <ng-template [uiCell]="column.partnerSince" let-since>
+      <span class="date">{{ since | date: 'dd/MM/yyyy' : 'UTC' }}</span>
+    </ng-template>
+    <ng-template [uiCell]="column.active" let-active>
+      @if (active) {
+        <span ui-badge>Ativo</span>
+      } @else {
+        <span ui-badge variant="outline">Inativo</span>
+      }
+    </ng-template>
+  </app-list-table>
+</section>

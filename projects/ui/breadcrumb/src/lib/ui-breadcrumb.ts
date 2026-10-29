@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /*
- * Trilha de navegação e suas partes. Cada parte é um atributo aplicado a um
- * elemento nativo; o separador "/" entre os itens é desenhado pelo CSS:
+ * Breadcrumb trail and its parts. Each part is an attribute applied to a
+ * native element; the "/" separator between items is drawn by CSS:
  *
  *   <nav aria-label="Trilha de navegação">
  *     <ol ui-breadcrumb>
@@ -67,7 +67,7 @@ export class UiBreadcrumbItem {}
 })
 export class UiBreadcrumbLink {}
 
-/** Item atual: não é link e é anunciado como a página atual. */
+/** Current item: not a link and announced as the current page. */
 @Component({
   selector: '[ui-breadcrumb-page]',
   template: '<ng-content />',

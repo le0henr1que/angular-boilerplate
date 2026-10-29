@@ -1,181 +1,115 @@
-import { inject, Injectable, InjectionToken, signal } from '@angular/core';
-import { APP_CONFIG } from '@core/config/app-config';
-import { LOG_PADRAO, type NivelLog, PESO_DO_NIVEL } from './log-config';
+import { inject, Injectable, signal } from '@angular/core';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
+import { DEFAULT_LOG_CONFIG, LEVEL_WEIGHT, SAVED_LEVEL_KEY } from './logging.constants';
+import { LOG_LEVEL, type LogLevel, type LogThreshold } from './logging.enums';
+import { LOG_TARGETS } from './logging.tokens';
+import { type LogRecord } from './logging.types';
+import { mask, serializeError } from './logging.utils';
 
-/** Um registro de log, já pronto para ir ao console ou ao backend. */
-export interface RegistroLog {
-  readonly nivel: NivelLog;
-  /** De onde veio: 'http', 'navegacao', 'auth', 'produtos'... */
-  readonly contexto: string;
-  readonly mensagem: string;
-  /** Dados extras, já com campos sensíveis mascarados. */
-  readonly dados?: unknown;
-  readonly erro?: ErroSerializado;
-  /** O erro original (stack clicável no console). Só para o console: não vai ao backend. */
-  readonly original?: unknown;
-  /** ISO 8601. */
-  readonly momento: string;
-  /** Identifica a aba: junta todos os registros de uma mesma visita. */
-  readonly sessao: string;
-  /** Tela em que o usuário estava. */
-  readonly rota: string;
-}
-
-export interface ErroSerializado {
-  readonly nome: string;
-  readonly mensagem: string;
-  readonly stack?: string;
-  readonly status?: number;
-}
-
-/** Para onde os registros vão (console, backend...). Registre com `multi: true`. */
-export interface DestinoLog {
-  registrar(registro: RegistroLog): void;
-}
-
-export const LOG_DESTINOS = new InjectionToken<readonly DestinoLog[]>('LOG_DESTINOS');
-
-/** Chave do localStorage que guarda o nível escolhido em tempo de execução. */
-export const CHAVE_NIVEL_SALVO = 'supermercado.log.nivel';
-
-const CAMPO_SENSIVEL = /senha|password|token|secret|authorization|cookie|cpf|cartao|card/i;
-const PROFUNDIDADE_MAXIMA = 5;
-
-/** Copia os dados trocando valores de campos sensíveis por '***'. Nunca altera o original. */
-export function mascarar(valor: unknown, profundidade = 0): unknown {
-  if (valor === null || typeof valor !== 'object') return valor;
-  if (profundidade >= PROFUNDIDADE_MAXIMA) return '[...]';
-  if (Array.isArray(valor)) return valor.map((item) => mascarar(item, profundidade + 1));
-  return Object.fromEntries(
-    Object.entries(valor).map(([chave, item]) => [
-      chave,
-      CAMPO_SENSIVEL.test(chave) ? '***' : mascarar(item, profundidade + 1),
-    ]),
-  );
-}
-
-export function serializarErro(erro: unknown): ErroSerializado {
-  if (erro instanceof Error) {
-    const status = (erro as Error & { status?: unknown }).status;
-    return {
-      nome: erro.name,
-      mensagem: erro.message,
-      stack: erro.stack,
-      ...(typeof status === 'number' ? { status } : {}),
-    };
-  }
-  // HttpErrorResponse não herda de Error.
-  if (typeof erro === 'object' && erro !== null && 'status' in erro && 'message' in erro) {
-    const { status, message, name } = erro as { status: number; message: string; name?: string };
-    return { nome: name ?? 'HttpErrorResponse', mensagem: message, status };
-  }
-  return { nome: 'Desconhecido', mensagem: String(erro) };
-}
-
-function lerNivelSalvo(): NivelLog | 'off' | null {
+function readSavedLevel(): LogThreshold | null {
   try {
-    const salvo = localStorage.getItem(CHAVE_NIVEL_SALVO);
-    return salvo && salvo in PESO_DO_NIVEL ? (salvo as NivelLog | 'off') : null;
+    const saved = localStorage.getItem(SAVED_LEVEL_KEY);
+    return saved && saved in LEVEL_WEIGHT ? (saved as LogThreshold) : null;
   } catch {
     return null;
   }
 }
 
 /**
- * Ponto único de log do app. Ninguém chama `console.*` direto: use o Logger.
+ * The app's single logging point. Nobody calls `console.*` directly: use the Logger.
  *
  * ```ts
- * readonly #log = inject(Logger).com('produtos');
- * this.#log.info('filtro aplicado', { status });
- * this.#log.error('falhou ao salvar', erro);
- * const fim = this.#log.medir('montar relatório'); ...; fim();
+ * readonly #log = inject(Logger).withContext('products');
+ * this.#log.info('filter applied', { status });
+ * this.#log.error('failed to save', error);
+ * const done = this.#log.time('build report'); ...; done();
  * ```
  *
- * O que aparece depende do `log.nivel` do environment (dev: tudo; prod: só warn e error).
+ * What shows up depends on the environment's `log.level` (dev: everything; prod: warn and error only).
  */
 @Injectable({ providedIn: 'root' })
 export class Logger {
-  readonly #config = inject(APP_CONFIG, { optional: true })?.log ?? LOG_PADRAO;
-  readonly #destinos = inject(LOG_DESTINOS, { optional: true }) ?? [];
-  readonly #sessao = Math.random().toString(36).slice(2, 10);
+  readonly #config = inject(APP_CONFIG, { optional: true })?.log ?? DEFAULT_LOG_CONFIG;
+  readonly #targets = inject(LOG_TARGETS, { optional: true }) ?? [];
+  readonly #session = Math.random().toString(36).slice(2, 10);
 
-  /** Nível em vigor: o do environment, ou o escolhido em tempo de execução. */
-  readonly nivel = signal<NivelLog | 'off'>(lerNivelSalvo() ?? this.#config.nivel);
+  /** Level in effect: the environment's, or the one chosen at runtime. */
+  readonly level = signal<LogThreshold>(readSavedLevel() ?? this.#config.level);
 
-  /** Logger com um contexto fixo (aparece como [contexto] em cada linha). */
-  com(contexto: string): LogDeContexto {
-    return new LogDeContexto(this, contexto);
+  /** Logger with a fixed context (shown as [context] on each line). */
+  withContext(context: string): ContextLogger {
+    return new ContextLogger(this, context);
   }
 
-  /** Mudar o nível agora. `salvar` mantém a escolha depois do F5 (só nesta máquina). */
-  definirNivel(nivel: NivelLog | 'off' | null, salvar = true): void {
+  /** Change the level now. `save` keeps the choice after F5 (on this machine only). */
+  setLevel(level: LogThreshold | null, save = true): void {
     try {
-      if (salvar && nivel) localStorage.setItem(CHAVE_NIVEL_SALVO, nivel);
-      if (!nivel) localStorage.removeItem(CHAVE_NIVEL_SALVO);
+      if (save && level) localStorage.setItem(SAVED_LEVEL_KEY, level);
+      if (!level) localStorage.removeItem(SAVED_LEVEL_KEY);
     } catch {
-      // Sem localStorage (aba anônima, bloqueado): vale só até o F5.
+      // No localStorage (private tab, blocked): lasts only until F5.
     }
-    this.nivel.set(nivel ?? this.#config.nivel);
+    this.level.set(level ?? this.#config.level);
   }
 
-  /** Vale a pena montar o registro? Use antes de cálculos caros só para log. */
-  ativo(nivel: NivelLog): boolean {
-    return PESO_DO_NIVEL[nivel] >= PESO_DO_NIVEL[this.nivel()];
+  /** Is it worth building the record? Use it before expensive log-only computations. */
+  isEnabled(level: LogLevel): boolean {
+    return LEVEL_WEIGHT[level] >= LEVEL_WEIGHT[this.level()];
   }
 
-  registrar(nivel: NivelLog, contexto: string, mensagem: string, dados?: unknown): void {
-    if (!this.ativo(nivel)) return;
-    const ehErro =
-      dados instanceof Error || (dados as { name?: unknown })?.name === 'HttpErrorResponse';
-    const registro: RegistroLog = {
-      nivel,
-      contexto,
-      mensagem,
-      ...(dados === undefined
+  log(level: LogLevel, context: string, message: string, data?: unknown): void {
+    if (!this.isEnabled(level)) return;
+    const isError =
+      data instanceof Error || (data as { name?: unknown })?.name === 'HttpErrorResponse';
+    const record: LogRecord = {
+      level,
+      context,
+      message,
+      ...(data === undefined
         ? {}
-        : ehErro
-          ? { erro: serializarErro(dados), original: dados }
-          : { dados: mascarar(dados) }),
-      momento: new Date().toISOString(),
-      sessao: this.#sessao,
-      rota: globalThis.location?.pathname ?? '',
+        : isError
+          ? { error: serializeError(data), original: data }
+          : { data: mask(data) }),
+      timestamp: new Date().toISOString(),
+      session: this.#session,
+      route: globalThis.location?.pathname ?? '',
     };
-    for (const destino of this.#destinos) {
+    for (const target of this.#targets) {
       try {
-        destino.registrar(registro);
+        target.write(record);
       } catch {
-        // Um destino com defeito não pode derrubar o app nem os outros destinos.
+        // A broken target can't take down the app or the other targets.
       }
     }
   }
 }
 
-export class LogDeContexto {
+export class ContextLogger {
   constructor(
     private readonly logger: Logger,
-    readonly contexto: string,
+    readonly context: string,
   ) {}
 
-  debug(mensagem: string, dados?: unknown): void {
-    this.logger.registrar('debug', this.contexto, mensagem, dados);
+  debug(message: string, data?: unknown): void {
+    this.logger.log(LOG_LEVEL.debug, this.context, message, data);
   }
 
-  info(mensagem: string, dados?: unknown): void {
-    this.logger.registrar('info', this.contexto, mensagem, dados);
+  info(message: string, data?: unknown): void {
+    this.logger.log(LOG_LEVEL.info, this.context, message, data);
   }
 
-  warn(mensagem: string, dados?: unknown): void {
-    this.logger.registrar('warn', this.contexto, mensagem, dados);
+  warn(message: string, data?: unknown): void {
+    this.logger.log(LOG_LEVEL.warn, this.context, message, data);
   }
 
-  /** Passe o erro em `dados`: ele vira `{ nome, mensagem, stack, status }`. */
-  error(mensagem: string, dados?: unknown): void {
-    this.logger.registrar('error', this.contexto, mensagem, dados);
+  /** Pass the error in `data`: it becomes `{ name, message, stack, status }`. */
+  error(message: string, data?: unknown): void {
+    this.logger.log(LOG_LEVEL.error, this.context, message, data);
   }
 
-  /** Cronômetro: chame a função devolvida no fim. Registra em debug com a duração. */
-  medir(mensagem: string): () => void {
-    const inicio = performance.now();
-    return () => this.debug(`${mensagem} (${Math.round(performance.now() - inicio)} ms)`);
+  /** Stopwatch: call the returned function at the end. Records at debug level with the duration. */
+  time(message: string): () => void {
+    const start = performance.now();
+    return () => this.debug(`${message} (${Math.round(performance.now() - start)} ms)`);
   }
 }

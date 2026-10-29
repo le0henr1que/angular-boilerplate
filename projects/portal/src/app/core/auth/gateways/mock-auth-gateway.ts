@@ -1,25 +1,20 @@
 import { Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { DEFAULT_PERSONA, MOCK_AUTH_URLS } from '../auth.constants';
 import { BffAuthGateway } from './bff-auth-gateway';
 
-/** Endpoints que só existem na API simulada (src/mocks/mock-auth.interceptor.ts). */
-export const MOCK_AUTH_URLS = {
-  login: '/mock-auth/login',
-  logout: '/mock-auth/logout',
-} as const;
-
 /**
- * Igual ao BFF real em tudo, menos no login/logout: em vez de redirecionar para a Microsoft,
- * pede para a API simulada criar/apagar o cookie de sessão. `buscarUsuario()` é herdado:
- * o mesmo GET auth.urls.usuario, respondido pelo mock a partir do cookie.
+ * Same as the real BFF in everything except login/logout: instead of redirecting to Microsoft,
+ * it asks the mock API to create/delete the session cookie. `fetchUser()` is inherited:
+ * the same GET auth.urls.user, answered by the mock from the cookie.
  */
 @Injectable({ providedIn: 'root' })
 export class MockAuthGateway extends BffAuthGateway {
-  override async entrar(_voltarPara: string, persona = 'admin'): Promise<void> {
+  override async signIn(_returnTo: string, persona: string = DEFAULT_PERSONA): Promise<void> {
     await firstValueFrom(this.http.post(MOCK_AUTH_URLS.login, { persona }));
   }
 
-  override async sair(): Promise<void> {
+  override async signOut(): Promise<void> {
     await firstValueFrom(this.http.post(MOCK_AUTH_URLS.logout, null));
   }
 }

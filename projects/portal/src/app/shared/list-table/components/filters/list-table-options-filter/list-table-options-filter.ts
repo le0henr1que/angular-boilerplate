@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { UiLabel } from '@supermercado/ui/label';
 import { UiSelect } from '@supermercado/ui/select';
 import { injectListTableFilter } from '../../../hooks/inject-list-table-filter';
-import { type UrlField } from '../../../models/url-field';
-import { uniqueId } from '../../../utils/unique-id';
+import { type UrlField } from '../../../models/url-field.types';
+import { uniqueId } from '../../../utils/unique-id.utils';
 
 /**
  * Options list filter, ready to use inside <app-list-table>:

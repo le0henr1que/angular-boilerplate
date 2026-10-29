@@ -4,7 +4,7 @@ import { UiIcon } from '@supermercado/ui/icon';
 import { type Meta, type StoryObj, argsToTemplate, moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<UiAlert> = {
-  title: 'Componentes/Alert',
+  title: 'Components/Alert',
   component: UiAlert,
   decorators: [moduleMetadata({ imports: [UiAlertImports, UiIcon, UiButton] })],
   args: { variant: 'default' },
@@ -26,7 +26,7 @@ type Story = StoryObj<UiAlert>;
 
 export const Default: Story = {};
 
-export const Erro: Story = {
+export const Error: Story = {
   render: () => ({
     template: `
       <div ui-alert variant="destructive" style="max-width: 32rem">
@@ -41,7 +41,7 @@ export const Erro: Story = {
   }),
 };
 
-export const SemIcone: Story = {
+export const WithoutIcon: Story = {
   render: () => ({
     template: `
       <div ui-alert style="max-width: 32rem">

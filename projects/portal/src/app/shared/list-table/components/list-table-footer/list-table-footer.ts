@@ -2,8 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, input, output } from '@an
 import { UiLabel } from '@supermercado/ui/label';
 import { UiPagination } from '@supermercado/ui/pagination';
 import { UiSelect } from '@supermercado/ui/select';
-import { FIRST_PAGE } from '../../models/list-table.models';
-import { uniqueId } from '../../utils/unique-id';
+import { FIRST_PAGE } from '../../models/list-table.constants';
+import { uniqueId } from '../../utils/unique-id.utils';
 
 /** Page size + navigation between pages. Presentational. */
 @Component({
@@ -22,9 +22,9 @@ import { uniqueId } from '../../utils/unique-id';
 
     @if (hasManyPages()) {
       <ui-pagination
-        [pagina]="page()"
-        [totalPaginas]="totalPages()"
-        (mudarPagina)="pageChange.emit($event)"
+        [page]="page()"
+        [totalPages]="totalPages()"
+        (pageChange)="pageChange.emit($event)"
       />
     }
   `,

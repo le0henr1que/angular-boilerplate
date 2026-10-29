@@ -1,41 +1,45 @@
 import { render, screen } from '@testing-library/angular';
 import userEvent from '@testing-library/user-event';
-import { paginasVisiveis, UiPagination } from './ui-pagination';
+import { UiPagination } from './ui-pagination';
+import { visiblePages } from './ui-pagination.utils';
 
-describe('paginasVisiveis', () => {
-  it('mostra todas quando são poucas', () => {
-    expect(paginasVisiveis(2, 4)).toEqual([1, 2, 3, 4]);
+describe('visiblePages', () => {
+  it('shows every page when there are few', () => {
+    expect(visiblePages(2, 4)).toEqual([1, 2, 3, 4]);
   });
 
-  it('troca os blocos escondidos por reticências', () => {
-    expect(paginasVisiveis(6, 20)).toEqual([1, 'reticencias', 5, 6, 7, 'reticencias', 20]);
-    expect(paginasVisiveis(1, 20)).toEqual([1, 2, 'reticencias', 20]);
+  it('replaces the hidden blocks with an ellipsis', () => {
+    expect(visiblePages(6, 20)).toEqual([1, 'ellipsis', 5, 6, 7, 'ellipsis', 20]);
+    expect(visiblePages(1, 20)).toEqual([1, 2, 'ellipsis', 20]);
   });
 });
 
 describe('UiPagination', () => {
-  async function renderizar(pagina: number, totalPaginas: number) {
-    const mudarPagina = vi.fn();
+  async function renderPagination(page: number, totalPages: number) {
+    const pageChange = vi.fn();
     await render(UiPagination, {
-      inputs: { pagina, totalPaginas },
-      on: { mudarPagina },
+      inputs: { page, totalPages },
+      on: { pageChange },
     });
-    return mudarPagina;
+    return pageChange;
   }
 
-  it('marca a página atual e avisa a página clicada', async () => {
-    const mudarPagina = await renderizar(2, 5);
-    expect(screen.getByRole('button', { name: 'Página 2' })).toHaveAttribute('aria-current', 'page');
-    // Página 2 de 5: aparecem 1 2 3 … 5 (a 4 fica nas reticências).
+  it('marks the current page and reports the clicked page', async () => {
+    const pageChange = await renderPagination(2, 5);
+    expect(screen.getByRole('button', { name: 'Página 2' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    );
+    // Page 2 of 5: shows 1 2 3 … 5 (page 4 is inside the ellipsis).
     expect(screen.queryByRole('button', { name: 'Página 4' })).not.toBeInTheDocument();
     await userEvent.click(screen.getByRole('button', { name: 'Página 5' }));
-    expect(mudarPagina).toHaveBeenCalledWith(5);
+    expect(pageChange).toHaveBeenCalledWith(5);
   });
 
-  it('anterior e próxima avisam a página vizinha e desabilitam nas pontas', async () => {
-    const mudarPagina = await renderizar(1, 3);
+  it('previous and next report the neighbour page and are disabled at the ends', async () => {
+    const pageChange = await renderPagination(1, 3);
     expect(screen.getByRole('button', { name: 'Anterior' })).toBeDisabled();
     await userEvent.click(screen.getByRole('button', { name: 'Próxima' }));
-    expect(mudarPagina).toHaveBeenCalledWith(2);
+    expect(pageChange).toHaveBeenCalledWith(2);
   });
 });

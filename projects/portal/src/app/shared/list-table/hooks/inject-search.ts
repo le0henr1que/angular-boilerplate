@@ -1,17 +1,10 @@
 import { computed, DestroyRef, inject, linkedSignal } from '@angular/core';
 import { type Params } from '@angular/router';
-import { type ApplyOptions } from '../list-table.context';
-import { textFilter } from '../models/filters';
-import { fieldToParam, NO_VALUE, readField } from '../models/url-field';
+import { NO_VALUE } from '../models/list-table.constants';
+import { textFilter } from '../utils/filter.utils';
+import { fieldToParam, readField } from '../utils/url-field.utils';
+import { type SearchConfig } from './hooks.types';
 import { type UrlParams } from './inject-url-params';
-
-export interface SearchConfig {
-  param: string;
-  enabled: () => boolean;
-  debounceMs: number;
-  /** Called when the text should go to the URL. */
-  apply: (params: Params, options: ApplyOptions) => void;
-}
 
 /**
  * Search-as-you-type "hook": waits `debounceMs` without keystrokes before applying (so the API

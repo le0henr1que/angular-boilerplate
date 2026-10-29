@@ -4,13 +4,13 @@ import { TestBed } from '@angular/core/testing';
 import { InteractionRequiredAuthError } from '@azure/msal-browser';
 import { provideTestAppConfig, TEST_APP_CONFIG } from '@testing/test-config';
 import { Auth } from '../auth';
-import { MSAL } from '../msal/provide-msal';
+import { MSAL } from '../msal/msal.tokens';
 import { msalTokenInterceptor } from './msal-token.interceptor';
 
-describe('msalTokenInterceptor (Bearer para a API)', () => {
-  const auth = { sessaoExpirou: vi.fn() };
+describe('msalTokenInterceptor (Bearer for the API)', () => {
+  const auth = { sessionExpired: vi.fn() };
   const acquireTokenSilent = vi.fn();
-  const conta = { homeAccountId: 'home-1' };
+  const account = { homeAccountId: 'home-1' };
   let http: HttpClient;
   let backend: HttpTestingController;
 
@@ -21,23 +21,23 @@ describe('msalTokenInterceptor (Bearer para a API)', () => {
         provideTestAppConfig({
           auth: {
             ...TEST_APP_CONFIG.auth,
-            modo: 'msal',
+            mode: 'msal',
             msal: {
               clientId: 'front',
               authority: 'https://login.microsoftonline.com/tenant',
               redirectUri: '/',
-              apis: [{ url: '/api', scopes: ['api://api/acesso'] }],
+              apis: [{ url: '/api', scopes: ['api://api/access'] }],
               cache: 'sessionStorage',
             },
           },
-          features: { autenticacao: true },
+          features: { authentication: true },
         }),
         provideHttpClient(withInterceptors([msalTokenInterceptor])),
         provideHttpClientTesting(),
         { provide: Auth, useValue: auth },
         {
           provide: MSAL,
-          useValue: { acquireTokenSilent, getActiveAccount: () => conta },
+          useValue: { acquireTokenSilent, getActiveAccount: () => account },
         },
       ],
     });
@@ -50,30 +50,30 @@ describe('msalTokenInterceptor (Bearer para a API)', () => {
     vi.clearAllMocks();
   });
 
-  it('chamada para a API leva o Bearer com os scopes dela', async () => {
+  it('a call to the API carries the Bearer with its scopes', async () => {
     http.get('/api/produtos').subscribe();
-    // O token vem de uma Promise do MSAL: a requisição sai um instante depois.
+    // The token comes from an MSAL Promise: the request leaves a moment later.
     const req = await vi.waitFor(() => backend.expectOne('/api/produtos'));
     expect(req.request.headers.get('Authorization')).toBe('Bearer token-123');
     expect(acquireTokenSilent).toHaveBeenCalledWith({
-      scopes: ['api://api/acesso'],
-      account: conta,
+      scopes: ['api://api/access'],
+      account,
     });
   });
 
-  it('outras URLs não recebem token', () => {
+  it('other URLs get no token', () => {
     http.get('https://viacep.com.br/ws/01001000/json/').subscribe();
     const req = backend.expectOne('https://viacep.com.br/ws/01001000/json/');
     expect(req.request.headers.has('Authorization')).toBe(false);
     expect(acquireTokenSilent).not.toHaveBeenCalled();
   });
 
-  it('Microsoft pede login de novo: encerra a sessão e não chama a API', async () => {
+  it('Microsoft asks to sign in again: ends the session and does not call the API', async () => {
     acquireTokenSilent.mockRejectedValue(
-      new InteractionRequiredAuthError('interaction_required', 'id-de-correlacao'),
+      new InteractionRequiredAuthError('interaction_required', 'correlation-id'),
     );
     http.get('/api/produtos').subscribe();
-    await vi.waitFor(() => expect(auth.sessaoExpirou).toHaveBeenCalled());
+    await vi.waitFor(() => expect(auth.sessionExpired).toHaveBeenCalled());
     backend.expectNone('/api/produtos');
   });
 });

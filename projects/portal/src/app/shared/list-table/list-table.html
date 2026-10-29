@@ -45,16 +45,16 @@
 
   <!-- isPlaceholderData: still the previous result, until the new one arrives (keepPreviousData). -->
   <ui-data-table
-    [dados]="query.data()?.items ?? []"
-    [colunas]="columns()"
-    [carregando]="query.isPending()"
-    [linhasCarregando]="paginationState.state()?.pageSize ?? pageSizeOptions()[0]"
-    [mensagemVazia]="emptyMessage()"
-    [rastrearPor]="trackBy()"
+    [data]="query.data()?.items ?? []"
+    [columns]="columns()"
+    [loading]="query.isPending()"
+    [loadingRows]="paginationState.state()?.pageSize ?? pageSizeOptions()[0]"
+    [emptyMessage]="emptyMessage()"
+    [trackBy]="trackBy()"
     [class.stale]="query.isPlaceholderData()"
   >
     @for (column of sortableColumns(); track column.id) {
-      <ng-template [uiCabecalho]="column.id">
+      <ng-template [uiColumnHeader]="column.id">
         <app-list-table-sort-header
           [heading]="column.heading"
           [field]="column.id"
@@ -64,19 +64,19 @@
         />
       </ng-template>
     }
-    @for (header of headers(); track header.uiCabecalho()) {
-      <ng-template [uiCabecalho]="header.uiCabecalho()" let-column>
+    @for (header of headers(); track header.uiColumnHeader()) {
+      <ng-template [uiColumnHeader]="header.uiColumnHeader()" let-column>
         <ng-container
           [ngTemplateOutlet]="header.template"
           [ngTemplateOutletContext]="{ $implicit: column }"
         />
       </ng-template>
     }
-    @for (cell of cells(); track cell.uiCelula()) {
-      <ng-template [uiCelula]="cell.uiCelula()" let-value let-row="linha" let-index="indice">
+    @for (cell of cells(); track cell.uiCell()) {
+      <ng-template [uiCell]="cell.uiCell()" let-value let-row="row" let-index="index">
         <ng-container
           [ngTemplateOutlet]="cell.template"
-          [ngTemplateOutletContext]="{ $implicit: value, linha: row, indice: index }"
+          [ngTemplateOutletContext]="{ $implicit: value, row: row, index: index }"
         />
       </ng-template>
     }

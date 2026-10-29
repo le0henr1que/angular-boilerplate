@@ -8,6 +8,7 @@ import {
 } from './lib/ui-empty';
 
 export * from './lib/ui-empty';
+export * from './lib/ui-empty.types';
 
 export const UiEmptyImports = [
   UiEmpty,

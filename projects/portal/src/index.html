@@ -7,23 +7,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/x-icon" href="favicon.ico" />
     <!--
-      Aplica o tema escuro antes do 1º desenho (o injectTema só roda depois que o Angular sobe):
-      sem isto, quem usa tema escuro vê um clarão branco no carregamento.
-      Mesma chave e mesma regra de core/theme/inject-tema.ts.
+      Applies the dark theme before the 1st paint (injectTheme only runs after Angular boots):
+      without this, dark theme users see a white flash while loading.
+      Same key and same rule as core/theme/inject-theme.ts.
     -->
     <script>
       try {
-        var tema = localStorage.getItem('supermercado:tema');
-        var escuro = tema ? tema === 'escuro' : matchMedia('(prefers-color-scheme: dark)').matches;
-        if (escuro) document.documentElement.classList.add('dark');
+        var theme = localStorage.getItem('supermercado:theme');
+        var dark = theme ? theme === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches;
+        if (dark) document.documentElement.classList.add('dark');
       } catch (e) {}
     </script>
   </head>
   <body>
     <app-root>
-      <!-- Aparece já no 1º byte; o Angular substitui pelo mesmo HTML do App (app.ts). -->
-      <div class="carregamento-global" role="status">
-        <span class="carregamento-global-spinner" aria-hidden="true"></span>
+      <!-- Shows from the 1st byte; Angular replaces it with the same HTML from App (app.ts). -->
+      <div class="global-loading" role="status">
+        <span class="global-loading-spinner" aria-hidden="true"></span>
         <span class="sr-only">Carregando…</span>
       </div>
     </app-root>

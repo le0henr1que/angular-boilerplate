@@ -1,0 +1,16 @@
+@use 'responsive' as *;
+
+@include b2b-breakpoint('md') {
+  .category-field {
+    width: 11rem;
+  }
+}
+
+/* ── Cells (the uiCell ng-templates belong to this page) ── */
+.amount {
+  font-variant-numeric: tabular-nums;
+}
+
+.low-stock-badge {
+  margin-left: 0.5rem;
+}

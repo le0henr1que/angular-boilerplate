@@ -4,7 +4,7 @@ import { UiIcon } from '@supermercado/ui/icon';
 import { type Meta, type StoryObj, moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<UiEmpty> = {
-  title: 'Componentes/Empty',
+  title: 'Components/Empty',
   component: UiEmpty,
   decorators: [moduleMetadata({ imports: [UiEmptyImports, UiIcon, UiButton] })],
 };
@@ -12,7 +12,7 @@ const meta: Meta<UiEmpty> = {
 export default meta;
 type Story = StoryObj<UiEmpty>;
 
-export const ComIcone: Story = {
+export const WithIcon: Story = {
   render: () => ({
     template: `
       <div ui-empty style="border: 1px dashed var(--border); border-radius: var(--radius-lg)">
@@ -29,7 +29,7 @@ export const ComIcone: Story = {
   }),
 };
 
-export const Simples: Story = {
+export const Simple: Story = {
   render: () => ({
     template: `
       <div ui-empty>

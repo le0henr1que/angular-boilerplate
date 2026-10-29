@@ -2,9 +2,9 @@ import { type EnvironmentProviders, inject, provideAppInitializer } from '@angul
 import { Auth } from './auth';
 
 /**
- * Consulta a sessão (GET auth.urls.usuario) ANTES da primeira rota.
- * Assim os guards já sabem quem está logado no F5, sem "piscar" a tela de login.
+ * Checks the session (GET auth.urls.user) BEFORE the first route.
+ * That way the guards already know who is signed in on F5, without flashing the login screen.
  */
 export function provideAuth(): EnvironmentProviders {
-  return provideAppInitializer(() => inject(Auth).carregarSessao());
+  return provideAppInitializer(() => inject(Auth).loadSession());
 }

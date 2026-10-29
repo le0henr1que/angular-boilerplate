@@ -1,9 +1,10 @@
 import { ChangeDetectionStrategy, Component, computed, input } from '@angular/core';
-import { ICONES, type IconName } from './icones';
+import { ICONS } from './icons.constants';
+import { type IconName } from './ui-icon.types';
 
 /**
- * Ícone SVG. O tamanho segue o font-size e a cor segue o texto (currentColor).
- * É decorativo (aria-hidden): quem usa dá o nome acessível ao botão/link em volta.
+ * SVG icon. Its size follows the font-size and its color follows the text (currentColor).
+ * It is decorative (aria-hidden): the user gives the accessible name to the surrounding button/link.
  *
  *   <ui-icon name="search" />
  */
@@ -18,7 +19,7 @@ import { ICONES, type IconName } from './icones';
       stroke-linecap="round"
       stroke-linejoin="round"
     >
-      @for (d of caminhos(); track $index) {
+      @for (d of paths(); track $index) {
         <path [attr.d]="d" />
       }
     </svg>
@@ -42,5 +43,5 @@ import { ICONES, type IconName } from './icones';
 export class UiIcon {
   readonly name = input.required<IconName>();
 
-  protected readonly caminhos = computed<readonly string[]>(() => ICONES[this.name()]);
+  protected readonly paths = computed<readonly string[]>(() => ICONS[this.name()]);
 }

@@ -7,7 +7,7 @@ const config: StorybookConfig = {
     name: '@storybook/angular',
     options: {},
   },
-  // Imagens usadas nas histórias (ex.: /mountains.jpg)
+  // Images used in the stories (e.g. /mountains.jpg)
   staticDirs: ['../public'],
 };
 

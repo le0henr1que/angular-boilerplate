@@ -3,78 +3,78 @@ import { provideRouter, Router, withComponentInputBinding } from '@angular/route
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Auth } from '@core/auth/auth';
 import { AuthGateway } from '@core/auth/gateways/auth-gateway';
-import { type Papel } from '@core/auth/usuario';
-import { type FeatureFlags } from '@core/config/feature-flags';
-import { ProdutosApi } from '@features/produtos';
-import { PRODUTOS_TESTE } from '@testing/produtos.fixture';
+import { type Role } from '@core/auth/auth.enums';
+import { type FeatureFlags } from '@core/config/feature-flags.types';
+import { ProductsApi } from '@features/products';
 import { provideLocalePtBr } from '@testing/locale';
+import { TEST_PRODUCTS } from '@testing/products.fixture';
 import { provideTestAppConfig } from '@testing/test-config';
 import { provideTestQueryClient } from '@testing/test-query-client';
 import { screen } from '@testing-library/angular';
 import { routes } from './app.routes';
 
-/** Gates de verdade: rotas reais + Auth real. Só quem responde "quem está logado" é falso. */
-describe('Rotas do app com autenticação', () => {
+/** Real gates: real routes + real Auth. Only whoever answers "who is signed in" is fake. */
+describe('App routes with authentication', () => {
   const url = () => TestBed.inject(Router).url;
 
-  async function iniciar(papel: Papel | null, features: Partial<FeatureFlags> = {}) {
-    const usuario = papel ? { id: '1', nome: 'Teste', email: 't@x', papeis: [papel] } : null;
+  async function start(role: Role | null, features: Partial<FeatureFlags> = {}) {
+    const user = role ? { id: '1', name: 'Teste', email: 't@x', roles: [role] } : null;
     TestBed.configureTestingModule({
       providers: [
-        provideTestAppConfig({ features: { autenticacao: true, ...features } }),
+        provideTestAppConfig({ features: { authentication: true, ...features } }),
         provideTestQueryClient(),
         provideLocalePtBr(),
-        { provide: AuthGateway, useValue: { buscarUsuario: () => Promise.resolve(usuario) } },
+        { provide: AuthGateway, useValue: { fetchUser: () => Promise.resolve(user) } },
         {
-          provide: ProdutosApi,
-          useValue: { listar: vi.fn().mockResolvedValue(PRODUTOS_TESTE), buscar: vi.fn() },
+          provide: ProductsApi,
+          useValue: { list: vi.fn().mockResolvedValue(TEST_PRODUCTS), get: vi.fn() },
         },
         provideRouter(routes, withComponentInputBinding()),
       ],
     });
-    await TestBed.inject(Auth).carregarSessao(); // o que o provideAuth() faz no app
+    await TestBed.inject(Auth).loadSession(); // what provideAuth() does in the app
     return RouterTestingHarness.create();
   }
 
-  it('sem sessão, qualquer tela manda para o login guardando o destino', async () => {
-    const harness = await iniciar(null);
+  it('without a session, any screen sends to the login keeping the destination', async () => {
+    const harness = await start(null);
     await harness.navigateByUrl('/produtos?q=arroz');
     expect(url()).toBe('/login?voltarPara=%2Fprodutos%3Fq%3Darroz');
     expect(screen.getByRole('heading', { name: 'Entrar' })).toBeInTheDocument();
   });
 
-  it('logado, a tela de login devolve para o início', async () => {
-    const harness = await iniciar('operador');
+  it('signed in, the login screen sends back to the home page', async () => {
+    const harness = await start('operator');
     await harness.navigateByUrl('/login');
     expect(url()).toBe('/inicio');
   });
 
-  it('sem o papel admin, /admin vai para /sem-permissao', async () => {
-    const harness = await iniciar('cliente');
+  it('without the admin role, /admin goes to /sem-permissao', async () => {
+    const harness = await start('customer');
     await harness.navigateByUrl('/admin');
     expect(url()).toBe('/sem-permissao');
   });
 
-  it('admin entra em /admin', async () => {
-    const harness = await iniciar('admin');
+  it('an admin gets into /admin', async () => {
+    const harness = await start('admin');
     await harness.navigateByUrl('/admin');
     expect(await screen.findByRole('heading', { name: 'Administração' })).toBeInTheDocument();
   });
 
-  it('flag areaAdmin desligada: /admin não existe nem para o admin', async () => {
-    const harness = await iniciar('admin', { areaAdmin: false });
+  it('adminArea flag off: /admin does not exist even for the admin', async () => {
+    const harness = await start('admin', { adminArea: false });
     await harness.navigateByUrl('/admin');
     expect(screen.getByRole('heading', { name: 'Página não encontrada' })).toBeInTheDocument();
   });
 
-  it('flag controleDePapeis desligada: qualquer logado entra em /admin', async () => {
-    const harness = await iniciar('cliente', { controleDePapeis: false });
+  it('roleControl flag off: any signed-in user gets into /admin', async () => {
+    const harness = await start('customer', { roleControl: false });
     await harness.navigateByUrl('/admin');
     expect(url()).toBe('/admin');
   });
 
-  it('flag autenticacao desligada: app aberto e /login some', async () => {
-    const harness = await iniciar(null, { autenticacao: false });
+  it('authentication flag off: open app and /login disappears', async () => {
+    const harness = await start(null, { authentication: false });
     await harness.navigateByUrl('/produtos');
     expect(url()).toBe('/produtos');
     await harness.navigateByUrl('/login');

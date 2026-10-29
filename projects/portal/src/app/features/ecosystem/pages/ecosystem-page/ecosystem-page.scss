@@ -1,0 +1,27 @@
+@use 'responsive' as *;
+
+@include b2b-breakpoint('md') {
+  .type-field {
+    width: 11rem;
+  }
+}
+
+/* ── Cells (the uiCell ng-templates belong to this page) ── */
+.contact {
+  display: flex;
+  flex-direction: column;
+}
+
+.email {
+  color: var(--muted-foreground);
+  font-size: var(--text-xs);
+  text-decoration: none;
+}
+
+.email:hover {
+  text-decoration: underline;
+}
+
+.date {
+  font-variant-numeric: tabular-nums;
+}

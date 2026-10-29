@@ -1,17 +1,9 @@
 import { computed } from '@angular/core';
 import { type Params } from '@angular/router';
-import { type Sort, SORT_DIRECTION, type SortDirection } from '../models/list-table.models';
+import { SORT_DIRECTION, type SortDirection } from '../models/list-table.enums';
+import { type Sort } from '../models/list-table.types';
+import { type SortingConfig } from './hooks.types';
 import { type UrlParams } from './inject-url-params';
-
-export interface SortingConfig {
-  fieldParam: string;
-  directionParam: string;
-  enabled: () => boolean;
-  /** Ids of the sortable columns: a field outside them, coming from the URL, is ignored. */
-  fields: () => readonly string[];
-  /** Sort used when the URL has none. */
-  defaultSort: () => Sort | null;
-}
 
 const DIRECTIONS: readonly SortDirection[] = Object.values(SORT_DIRECTION);
 

@@ -2,10 +2,10 @@ import { DOCUMENT } from '@angular/common';
 import { TestBed } from '@angular/core/testing';
 import { type AccountInfo, type AuthenticationResult } from '@azure/msal-browser';
 import { provideTestAppConfig, TEST_APP_CONFIG } from '@testing/test-config';
-import { MSAL } from '../msal/provide-msal';
-import { MsalAuthGateway, paraUsuario } from './msal-auth-gateway';
+import { MSAL } from '../msal/msal.tokens';
+import { MsalAuthGateway, toUser } from './msal-auth-gateway';
 
-const conta = (roles?: string[]): AccountInfo =>
+const account = (roles?: string[]): AccountInfo =>
   ({
     homeAccountId: 'home-1',
     localAccountId: 'oid-1',
@@ -16,7 +16,7 @@ const conta = (roles?: string[]): AccountInfo =>
     idTokenClaims: roles ? { roles } : {},
   }) as AccountInfo;
 
-describe('MsalAuthGateway (Azure AD com MSAL)', () => {
+describe('MsalAuthGateway (Azure AD with MSAL)', () => {
   const replaceState = vi.fn();
   let msal: {
     initialize: ReturnType<typeof vi.fn>;
@@ -43,12 +43,12 @@ describe('MsalAuthGateway (Azure AD com MSAL)', () => {
         provideTestAppConfig({
           auth: {
             ...TEST_APP_CONFIG.auth,
-            modo: 'msal',
+            mode: 'msal',
             msal: {
               clientId: 'front',
               authority: 'https://login.microsoftonline.com/tenant',
               redirectUri: '/',
-              apis: [{ url: '/api', scopes: ['api://api/acesso'] }],
+              apis: [{ url: '/api', scopes: ['api://api/access'] }],
               cache: 'sessionStorage',
             },
           },
@@ -63,67 +63,67 @@ describe('MsalAuthGateway (Azure AD com MSAL)', () => {
 
   const gateway = () => TestBed.inject(MsalAuthGateway);
 
-  it('sem conta no cache: ninguém logado', async () => {
-    expect(await gateway().buscarUsuario()).toBeNull();
+  it('no account in the cache: nobody signed in', async () => {
+    expect(await gateway().fetchUser()).toBeNull();
     expect(msal.initialize).toHaveBeenCalled();
   });
 
-  it('conta já no cache (F5): devolve o usuário e marca a conta ativa', async () => {
-    msal.getAllAccounts.mockReturnValue([conta(['operador'])]);
-    expect(await gateway().buscarUsuario()).toEqual({
+  it('account already in the cache (F5): returns the user and marks the account active', async () => {
+    msal.getAllAccounts.mockReturnValue([account(['operator'])]);
+    expect(await gateway().fetchUser()).toEqual({
       id: 'oid-1',
-      nome: 'Ana Admin',
+      name: 'Ana Admin',
       email: 'ana@exemplo.com',
-      papeis: ['operador'],
+      roles: ['operator'],
     });
     expect(msal.setActiveAccount).toHaveBeenCalled();
     expect(replaceState).not.toHaveBeenCalled();
   });
 
-  it('voltando da Microsoft: põe a URL no destino guardado no state', async () => {
+  it('coming back from Microsoft: sets the URL to the destination kept in the state', async () => {
     msal.handleRedirectPromise.mockResolvedValue({
-      account: conta(),
+      account: account(),
       state: '/produtos?q=1',
     } as AuthenticationResult);
-    await gateway().buscarUsuario();
+    await gateway().fetchUser();
     expect(replaceState).toHaveBeenCalledWith(null, '', '/produtos?q=1');
   });
 
-  it('state com URL externa vira /inicio (open redirect)', async () => {
+  it('a state with an external URL becomes /inicio (open redirect)', async () => {
     msal.handleRedirectPromise.mockResolvedValue({
-      account: conta(),
-      state: 'https://site-malicioso.com',
+      account: account(),
+      state: 'https://malicious-site.com',
     } as AuthenticationResult);
-    await gateway().buscarUsuario();
+    await gateway().fetchUser();
     expect(replaceState).toHaveBeenCalledWith(null, '', '/inicio');
   });
 
-  it('erro na volta da Microsoft: trata como não logado', async () => {
+  it('error coming back from Microsoft: treated as signed out', async () => {
     msal.handleRedirectPromise.mockRejectedValue(new Error('access_denied'));
-    expect(await gateway().buscarUsuario()).toBeNull();
+    expect(await gateway().fetchUser()).toBeNull();
   });
 
-  it('entrar: loginRedirect com o destino no state e os scopes da API', async () => {
-    void gateway().entrar('/produtos');
+  it('signIn: loginRedirect with the destination in the state and the API scopes', async () => {
+    void gateway().signIn('/produtos');
     await vi.waitFor(() => expect(msal.loginRedirect).toHaveBeenCalled());
     expect(msal.loginRedirect).toHaveBeenCalledWith({
-      scopes: ['api://api/acesso'],
+      scopes: ['api://api/access'],
       state: '/produtos',
     });
   });
 
-  it('sair: logoutRedirect da conta ativa', () => {
-    const ativa = conta();
-    msal.getActiveAccount.mockReturnValue(ativa);
-    void gateway().sair();
-    expect(msal.logoutRedirect).toHaveBeenCalledWith({ account: ativa });
+  it('signOut: logoutRedirect of the active account', () => {
+    const active = account();
+    msal.getActiveAccount.mockReturnValue(active);
+    void gateway().signOut();
+    expect(msal.logoutRedirect).toHaveBeenCalledWith({ account: active });
   });
 
-  it('papéis: só os conhecidos pelo app', () => {
-    expect(paraUsuario(conta(['admin', 'Leitor.Global', 'cliente'])).papeis).toEqual([
+  it('roles: only the ones the app knows', () => {
+    expect(toUser(account(['admin', 'Global.Reader', 'customer'])).roles).toEqual([
       'admin',
-      'cliente',
+      'customer',
     ]);
-    expect(paraUsuario(conta()).papeis).toEqual([]);
+    expect(toUser(account()).roles).toEqual([]);
   });
 });

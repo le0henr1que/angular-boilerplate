@@ -1,14 +1,14 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
-import { APP_CONFIG } from '@core/config/app-config';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
 
 @Component({
   selector: 'app-footer',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <footer class="rodape">
+    <footer class="footer">
       <span>{{ config.appName }}</span>
-      <!-- Versão do package.json: ajuda a saber o que está publicado ao reportar um problema. -->
-      <span class="versao">v{{ config.version }}</span>
+      <!-- package.json version: helps to know what is deployed when reporting a problem. -->
+      <span class="version">v{{ config.version }}</span>
     </footer>
   `,
   styles: `
@@ -16,7 +16,7 @@ import { APP_CONFIG } from '@core/config/app-config';
       display: block;
       border-top: 1px solid var(--border);
     }
-    .rodape {
+    .footer {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -27,7 +27,7 @@ import { APP_CONFIG } from '@core/config/app-config';
       color: var(--muted-foreground);
       font-size: var(--text-xs);
     }
-    .versao {
+    .version {
       font-variant-numeric: tabular-nums;
     }
   `,

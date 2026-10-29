@@ -16,6 +16,7 @@ import {
   type ListTableRequest,
   type ListTableResult,
   type ListTableSource,
+  LIST_TABLE_LOGGER,
   optionsFilter,
   provideListTable,
   type UrlField,
@@ -43,9 +44,9 @@ type Filters = FieldValues<typeof FILTERS>;
 type Result = ListTableResult<Order>;
 
 const COLUMNS: ListTableColumn<Order>[] = [
-  { chave: 'id', titulo: '#' },
-  { chave: 'customer', titulo: 'Cliente', sortable: true },
-  { chave: 'total', titulo: 'Total', sortable: true },
+  { key: 'id', title: '#' },
+  { key: 'customer', title: 'Cliente', sortable: true },
+  { key: 'total', title: 'Total', sortable: true },
 ];
 
 /** An "outside" filter, built only with the public hook. */
@@ -227,6 +228,18 @@ describe('ListTable', () => {
     const [, first] = screen.getAllByRole('row');
     expect(within(first).getByText('Ana')).toBeInTheDocument();
     expect(screen.getByText('25 item(ns)')).toBeInTheDocument();
+  });
+
+  it('logs each request through LIST_TABLE_LOGGER', async () => {
+    const logger = { debug: vi.fn(), error: vi.fn() };
+    TestBed.configureTestingModule({
+      providers: [{ provide: LIST_TABLE_LOGGER, useValue: logger }],
+    });
+    await open('/orders?status=paid');
+    expect(logger.debug).toHaveBeenCalledWith(
+      'request',
+      expect.objectContaining({ filters: { status: 'paid', urgent: false, store: 0 } }),
+    );
   });
 
   it('provideListTable overrides parameter names and texts', async () => {

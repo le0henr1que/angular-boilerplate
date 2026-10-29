@@ -1,20 +1,20 @@
-/* O Storybook usa exatamente o mesmo tema que os apps vão usar. */
+/* Storybook uses exactly the same theme the apps will use. */
 @import '../../ui/styles/supermercado.css';
 
-/* Fundo e cor do texto acompanham o tema também dentro do canvas do Storybook. */
+/* Background and text color follow the theme inside the Storybook canvas too. */
 body {
   padding: 1rem;
 }
 
-/* Utilitário só das histórias: enfileira os exemplos lado a lado. */
-.sb-linha {
+/* Stories-only utility: lines the examples up side by side. */
+.sb-row {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0.75rem;
 }
 
-.sb-coluna {
+.sb-column {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;

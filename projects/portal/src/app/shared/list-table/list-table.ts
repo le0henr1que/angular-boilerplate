@@ -5,6 +5,7 @@ import {
   Component,
   computed,
   contentChildren,
+  effect,
   forwardRef,
   inject,
   input,
@@ -12,13 +13,8 @@ import {
 import { type Params } from '@angular/router';
 import { UiAlertImports } from '@supermercado/ui/alert';
 import { UiButton } from '@supermercado/ui/button';
-import {
-  type Caminho,
-  UiCabecalho,
-  UiCelula,
-  UiDataTableImports,
-} from '@supermercado/ui/data-table';
-import { type IconName, UiIcon } from '@supermercado/ui/icon';
+import { type Path, UiCell, UiColumnHeader, UiDataTableImports } from '@supermercado/ui/data-table';
+import { UiIcon } from '@supermercado/ui/icon';
 import { UiSpinner } from '@supermercado/ui/spinner';
 import { ListTableFooter } from './components/list-table-footer/list-table-footer';
 import { ListTableSearch } from './components/list-table-search/list-table-search';
@@ -29,21 +25,19 @@ import { injectPagination } from './hooks/inject-pagination';
 import { injectSearch } from './hooks/inject-search';
 import { injectSorting } from './hooks/inject-sorting';
 import { injectUrlParams } from './hooks/inject-url-params';
-import { LIST_TABLE_CONFIG } from './list-table.config';
-import { type ApplyOptions, LIST_TABLE_CONTEXT, type ListTableContext } from './list-table.context';
+import { LIST_TABLE_CONFIG, LIST_TABLE_CONTEXT, LIST_TABLE_LOGGER } from './list-table.tokens';
+import { LIST_TABLE_ICON, NO_FILTERS } from './models/list-table.constants';
 import {
-  columnId,
+  type ApplyOptions,
   type ListTableColumn,
+  type ListTableContext,
   type ListTableRequest,
   type ListTableSource,
   type Sort,
-} from './models/list-table.models';
-import { fieldToParam, readField, type UrlField, type UrlFields } from './models/url-field';
-
-const ERROR_ICON: IconName = 'circle-alert';
-
-/** No specific filters: only search, sorting and pagination. */
-const NO_FILTERS = {};
+} from './models/list-table.types';
+import { type UrlField, type UrlFields } from './models/url-field.types';
+import { columnId } from './utils/column.utils';
+import { fieldToParam, readField } from './utils/url-field.utils';
 
 /**
  * A complete API-backed listing: search, filters, sorting, pagination, states (loading,
@@ -55,7 +49,7 @@ const NO_FILTERS = {};
  *     <app-list-table-options-filter label="Status" [filter]="filters.status" [options]="status" />
  *
  *     <!-- custom cells and headers, forwarded to ui-data-table -->
- *     <ng-template uiCelula="total" let-total>{{ total | currency: 'BRL' }}</ng-template>
+ *     <ng-template uiCell="total" let-total>{{ total | currency: 'BRL' }}</ng-template>
  *   </app-list-table>
  *
  * Turning parts off: [search]="false", [sorting]="false", [pagination]="false".
@@ -85,8 +79,9 @@ const NO_FILTERS = {};
 })
 export class ListTable<T, F extends object = Record<never, never>> implements ListTableContext {
   private readonly config = inject(LIST_TABLE_CONFIG);
+  private readonly log = inject(LIST_TABLE_LOGGER);
   protected readonly texts = this.config.texts;
-  protected readonly errorIcon = ERROR_ICON;
+  protected readonly errorIcon = LIST_TABLE_ICON.error;
 
   // ── Inputs ──
   readonly source = input.required<ListTableSource<T, F>>();
@@ -103,22 +98,22 @@ export class ListTable<T, F extends object = Record<never, never>> implements Li
   readonly emptyMessage = input(this.texts.empty);
   readonly errorTitle = input(this.texts.errorTitle);
   /** Identity of each row (forwarded to ui-data-table). */
-  readonly trackBy = input<Caminho<T> | ((row: T) => unknown)>();
+  readonly trackBy = input<Path<T> | ((row: T) => unknown)>();
 
   // ── The screen's templates, forwarded to ui-data-table (it can't see them through <ng-content>) ──
-  protected readonly cells = contentChildren(UiCelula);
-  private readonly screenHeaders = contentChildren(UiCabecalho);
+  protected readonly cells = contentChildren(UiCell);
+  private readonly screenHeaders = contentChildren(UiColumnHeader);
 
   protected readonly sortableColumns = computed(() => {
     if (!this.sorting()) return [];
     return this.columns()
       .filter((column) => column.sortable)
-      .map((column) => ({ id: columnId(column), heading: column.titulo }));
+      .map((column) => ({ id: columnId(column), heading: column.title }));
   });
   /** A sortable column's header is the sort button; the others come from the screen. */
   protected readonly headers = computed(() => {
     const sortable = new Set(this.sortableColumns().map((column) => column.id));
-    return this.screenHeaders().filter((header) => !sortable.has(header.uiCabecalho()));
+    return this.screenHeaders().filter((header) => !sortable.has(header.uiColumnHeader()));
   });
 
   // ── Hooks (state in the URL) ──
@@ -155,6 +150,11 @@ export class ListTable<T, F extends object = Record<never, never>> implements Li
   protected readonly query = injectListQuery(this.source, this.request);
 
   readonly hasFilter = computed(() => this.filtersState.active() || this.searchState.active());
+
+  constructor() {
+    // Runs again whenever the request changes (filter, search, page, sort).
+    effect(() => this.log.debug('request', this.request()));
+  }
 
   // ── Public API (context for the filters and use through a template ref: #list) ──
 

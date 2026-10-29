@@ -6,15 +6,17 @@ import {
 } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { type PaginaCatalogo } from '@features/catalogo';
-import { type Produto } from '@features/produtos';
+import { type CatalogResponse } from '@features/catalog';
+import { type EcosystemResponse } from '@features/ecosystem';
+import { type Product } from '@features/products';
 import { provideTestAppConfig } from '@testing/test-config';
 import { firstValueFrom } from 'rxjs';
-import { CATALOGO_DB } from './catalogo.db';
-import { PRODUTOS_DB } from './produtos.db';
+import { CATALOG_DB } from './catalog.db';
+import { ECOSYSTEM_DB } from './ecosystem.db';
 import { mockApiInterceptor } from './mock-api.interceptor';
+import { PRODUCTS_DB } from './products.db';
 
-describe('mockApiInterceptor (API simulada)', () => {
+describe('mockApiInterceptor (mock API)', () => {
   let http: HttpClient;
 
   beforeEach(() => {
@@ -34,115 +36,137 @@ describe('mockApiInterceptor (API simulada)', () => {
     vi.restoreAllMocks();
   });
 
-  /** Dispara o GET e avança o relógio falso além da latência simulada (800 ms). */
+  /** Fires the GET and moves the fake clock past the simulated latency (800 ms). */
   async function get<T>(url: string, params: Record<string, string> = {}): Promise<T> {
-    const resposta = firstValueFrom(http.get<T>(url, { params }));
+    const response = firstValueFrom(http.get<T>(url, { params }));
     await vi.advanceTimersByTimeAsync(1000);
-    return resposta;
+    return response;
   }
 
-  it('lista todos os produtos sem filtros', async () => {
-    const lista = await get<Produto[]>('/api/produtos');
-    expect(lista).toHaveLength(PRODUTOS_DB.length);
+  it('lists every product without filters', async () => {
+    const list = await get<Product[]>('/api/produtos');
+    expect(list).toHaveLength(PRODUCTS_DB.length);
   });
 
-  it('filtra pelo termo ignorando acentos e maiúsculas', async () => {
-    const lista = await get<Produto[]>('/api/produtos', { q: 'MACA' });
-    expect(lista.map((p) => p.nome)).toEqual(['Maçã gala (kg)']);
+  it('filters by term ignoring accents and case', async () => {
+    const list = await get<Product[]>('/api/produtos', { q: 'MACA' });
+    expect(list.map((p) => p.name)).toEqual(['Maçã gala (kg)']);
   });
 
-  it('filtra também por código e categoria', async () => {
-    const [primeiro] = PRODUTOS_DB;
-    expect(await get<Produto[]>('/api/produtos', { q: primeiro.codigo })).toEqual([primeiro]);
+  it('also filters by code and category', async () => {
+    const [first] = PRODUCTS_DB;
+    expect(await get<Product[]>('/api/produtos', { q: first.code })).toEqual([first]);
 
-    const bebidas = await get<Produto[]>('/api/produtos', { q: 'bebidas' });
-    expect(bebidas.length).toBeGreaterThan(0);
-    expect(bebidas.every((p) => p.categoria === 'Bebidas')).toBe(true);
+    const drinks = await get<Product[]>('/api/produtos', { q: 'bebidas' });
+    expect(drinks.length).toBeGreaterThan(0);
+    expect(drinks.every((p) => p.category === 'Bebidas')).toBe(true);
   });
 
-  it('filtra por status e ignora status inválido', async () => {
-    const disponiveis = await get<Produto[]>('/api/produtos', { status: 'disponivel' });
-    expect(disponiveis.length).toBeGreaterThan(0);
-    expect(disponiveis.every((p) => p.status === 'disponivel')).toBe(true);
+  it('filters by status and ignores an invalid status', async () => {
+    const available = await get<Product[]>('/api/produtos', { status: 'available' });
+    expect(available.length).toBeGreaterThan(0);
+    expect(available.every((p) => p.status === 'available')).toBe(true);
 
-    const invalido = await get<Produto[]>('/api/produtos', { status: 'xyz' });
-    expect(invalido).toHaveLength(PRODUTOS_DB.length);
+    const invalid = await get<Product[]>('/api/produtos', { status: 'xyz' });
+    expect(invalid).toHaveLength(PRODUCTS_DB.length);
   });
 
-  it('busca o detalhe pelo código', async () => {
-    const alvo = PRODUTOS_DB[3];
-    expect(await get<Produto>(`/api/produtos/${alvo.codigo}`)).toEqual(alvo);
+  it('gets the detail by code', async () => {
+    const target = PRODUCTS_DB[3];
+    expect(await get<Product>(`/api/produtos/${target.code}`)).toEqual(target);
   });
 
-  it('pagina o catálogo no servidor', async () => {
-    const pagina2 = await get<PaginaCatalogo>('/api/catalogo', { pagina: '2', porPagina: '10' });
-    expect(pagina2.itens).toEqual(CATALOGO_DB.slice(10, 20));
-    expect(pagina2).toMatchObject({
-      total: CATALOGO_DB.length,
-      pagina: 2,
-      porPagina: 10,
-      totalPaginas: Math.ceil(CATALOGO_DB.length / 10),
+  it('paginates the catalog on the server', async () => {
+    const page2 = await get<CatalogResponse>('/api/catalogo', { pagina: '2', porPagina: '10' });
+    expect(page2.items).toEqual(CATALOG_DB.slice(10, 20));
+    expect(page2).toMatchObject({
+      total: CATALOG_DB.length,
+      page: 2,
+      pageSize: 10,
+      totalPages: Math.ceil(CATALOG_DB.length / 10),
     });
   });
 
-  it('filtra o catálogo por termo, categoria e estoque baixo', async () => {
-    const resposta = await get<PaginaCatalogo>('/api/catalogo', {
-      q: 'cafe', // sem acento, acha "Café"
+  it('filters the catalog by term, category and low stock', async () => {
+    const response = await get<CatalogResponse>('/api/catalogo', {
+      q: 'cafe', // without accent, finds "Café"
       categoria: 'Bebidas',
       porPagina: '100',
     });
-    expect(resposta.itens.length).toBeGreaterThan(0);
+    expect(response.items.length).toBeGreaterThan(0);
     expect(
-      resposta.itens.every((i) => i.nome.includes('Café') && i.categoria.nome === 'Bebidas'),
+      response.items.every((i) => i.name.includes('Café') && i.category.name === 'Bebidas'),
     ).toBe(true);
 
-    const baixo = await get<PaginaCatalogo>('/api/catalogo', {
+    const low = await get<CatalogResponse>('/api/catalogo', {
       estoqueBaixo: 'true',
       porPagina: '100',
     });
-    expect(baixo.total).toBeGreaterThan(0);
-    expect(baixo.itens.every((i) => i.estoque.quantidade <= i.estoque.minimo)).toBe(true);
+    expect(low.total).toBeGreaterThan(0);
+    expect(low.items.every((i) => i.stock.quantity <= i.stock.minimum)).toBe(true);
   });
 
-  it('ordena o catálogo no servidor, inclusive por campo aninhado', async () => {
-    const porPreco = await get<PaginaCatalogo>('/api/catalogo', {
-      ordenarPor: 'preco',
+  it('sorts the catalog on the server, nested fields included', async () => {
+    const byPrice = await get<CatalogResponse>('/api/catalogo', {
+      ordenarPor: 'price',
       direcao: 'desc',
       porPagina: '100',
     });
-    const precos = porPreco.itens.map((i) => i.preco);
-    expect(precos).toEqual([...precos].sort((a, b) => b - a));
+    const prices = byPrice.items.map((i) => i.price);
+    expect(prices).toEqual([...prices].sort((a, b) => b - a));
 
-    const porEstoque = await get<PaginaCatalogo>('/api/catalogo', {
-      ordenarPor: 'estoque.quantidade',
+    const byStock = await get<CatalogResponse>('/api/catalogo', {
+      ordenarPor: 'stock.quantity',
       porPagina: '100',
     });
-    const estoques = porEstoque.itens.map((i) => i.estoque.quantidade);
-    expect(estoques).toEqual([...estoques].sort((a, b) => a - b));
+    const stock = byStock.items.map((i) => i.stock.quantity);
+    expect(stock).toEqual([...stock].sort((a, b) => a - b));
   });
 
-  it('corrige página fora do intervalo para a última', async () => {
-    const resposta = await get<PaginaCatalogo>('/api/catalogo', { pagina: '999' });
-    expect(resposta.pagina).toBe(resposta.totalPaginas);
+  it('clamps an out-of-range page to the last one', async () => {
+    const response = await get<CatalogResponse>('/api/catalogo', { pagina: '999' });
+    expect(response.page).toBe(response.totalPages);
   });
 
-  it('responde 404 para produto inexistente', async () => {
-    const resposta = firstValueFrom(http.get('/api/produtos/NAO-EXISTE'));
-    const verificacao = expect(resposta).rejects.toSatisfy(
-      (erro: unknown) => erro instanceof HttpErrorResponse && erro.status === 404,
+  it('filters, sorts and paginates the ecosystem on the server', async () => {
+    const logistics = await get<EcosystemResponse>('/api/ecossistema', {
+      tipo: 'logistics',
+      ativos: 'true',
+      ordenarPor: 'name',
+      direcao: 'asc',
+      porPagina: '100',
+    });
+    expect(logistics.total).toBeGreaterThan(0);
+    expect(logistics.total).toBeLessThan(ECOSYSTEM_DB.length);
+    expect(logistics.items.every((p) => p.type === 'logistics' && p.active)).toBe(true);
+    const names = logistics.items.map((p) => p.name);
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b, 'pt-BR')));
+
+    const page2 = await get<EcosystemResponse>('/api/ecossistema', {
+      pagina: '2',
+      porPagina: '10',
+    });
+    expect(page2).toMatchObject({ page: 2, pageSize: 10, total: ECOSYSTEM_DB.length });
+    expect(page2.items).toEqual(ECOSYSTEM_DB.slice(10, 20));
+  });
+
+  it('answers 404 for a product that does not exist', async () => {
+    const response = firstValueFrom(http.get('/api/produtos/NAO-EXISTE'));
+    const check = expect(response).rejects.toSatisfy(
+      (error: unknown) => error instanceof HttpErrorResponse && error.status === 404,
     );
     await vi.advanceTimersByTimeAsync(1000);
-    await verificacao;
+    await check;
   });
 
-  it('deixa passar o que não é /api (vai para o próximo handler)', () => {
-    const controle = TestBed.inject(HttpTestingController);
+  it('lets through what is not /api (goes to the next handler)', () => {
+    const controller = TestBed.inject(HttpTestingController);
     http.get('/assets/config.json').subscribe();
-    controle.expectOne('/assets/config.json').flush({});
-    controle.verify();
+    controller.expectOne('/assets/config.json').flush({});
+    controller.verify();
   });
 
-  it('respeita o apiUrl configurado', async () => {
+  it('honors the configured apiUrl', async () => {
     TestBed.resetTestingModule();
     TestBed.configureTestingModule({
       providers: [
@@ -152,11 +176,11 @@ describe('mockApiInterceptor (API simulada)', () => {
       ],
     });
     http = TestBed.inject(HttpClient);
-    const controle = TestBed.inject(HttpTestingController);
+    const controller = TestBed.inject(HttpTestingController);
 
-    expect(await get<Produto[]>('/backend/v1/produtos')).toHaveLength(PRODUTOS_DB.length);
-    // Com outro apiUrl, /api deixa de ser interceptado.
+    expect(await get<Product[]>('/backend/v1/produtos')).toHaveLength(PRODUCTS_DB.length);
+    // With another apiUrl, /api is no longer intercepted.
     http.get('/api/produtos').subscribe();
-    controle.expectOne('/api/produtos');
+    controller.expectOne('/api/produtos');
   });
 });

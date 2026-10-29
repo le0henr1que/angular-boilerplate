@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/angular';
 import { AppFooter } from './footer';
 
 describe('AppFooter', () => {
-  it('mostra o nome do app e a versão vinda da configuração', async () => {
+  it('shows the app name and the version from the configuration', async () => {
     await render(AppFooter, {
       providers: [provideTestAppConfig({ appName: 'Portal Teste', version: '1.2.3' })],
     });

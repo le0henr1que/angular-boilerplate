@@ -2,7 +2,7 @@ import { UiBadge } from '@supermercado/ui/badge';
 import { type Meta, type StoryObj, argsToTemplate, moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<UiBadge> = {
-  title: 'Componentes/Badge',
+  title: 'Components/Badge',
   component: UiBadge,
   decorators: [moduleMetadata({ imports: [UiBadge] })],
   args: { variant: 'default' },
@@ -20,10 +20,10 @@ type Story = StoryObj<UiBadge>;
 
 export const Default: Story = {};
 
-export const Variantes: Story = {
+export const Variants: Story = {
   render: () => ({
     template: `
-      <div class="sb-linha">
+      <div class="sb-row">
         <span ui-badge>Disponível</span>
         <span ui-badge variant="secondary">Estoque baixo</span>
         <span ui-badge variant="destructive">Esgotado</span>

@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /*
- * Cabeçalho fixo no topo e suas partes. Cada parte é um atributo aplicado a um
- * elemento nativo, para você escolher a tag certa (header, a, nav, div…):
+ * Sticky top header and its parts. Each part is an attribute applied to a
+ * native element, so you pick the right tag (header, a, nav, div…):
  *
  *   <header ui-header>
  *     <a ui-header-brand routerLink="/">Marca</a>
@@ -13,7 +13,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 @Component({
   selector: '[ui-header]',
-  template: '<div class="conteudo"><ng-content /></div>',
+  template: '<div class="content"><ng-content /></div>',
   styles: `
     :host {
       display: block;
@@ -24,7 +24,7 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
       background: color-mix(in oklch, var(--background) 90%, transparent);
       backdrop-filter: blur(8px);
     }
-    .conteudo {
+    .content {
       display: flex;
       align-items: center;
       gap: calc(var(--space) * 6);

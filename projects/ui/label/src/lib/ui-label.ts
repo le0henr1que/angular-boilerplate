@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
-/** Rótulo de campo: <label ui-label for="email">E-mail</label> */
+/** Field label: <label ui-label for="email">E-mail</label> */
 @Component({
   selector: 'label[ui-label]',
   template: '<ng-content />',

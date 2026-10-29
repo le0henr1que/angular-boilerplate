@@ -1,4 +1,4 @@
-// Ponto de entrada principal: vazio de propósito.
-// Importe cada componente do seu próprio caminho, ex.: '@supermercado/ui/button'.
-// Assim o app só carrega os componentes que realmente usa.
+// Main entry point: empty on purpose.
+// Import each component from its own path, e.g. '@supermercado/ui/button'.
+// That way the app only loads the components it actually uses.
 export default null;

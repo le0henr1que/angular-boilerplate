@@ -1,13 +1,13 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /*
- * Campo de texto simples:
- *   <input ui-input id="nome" />
+ * Plain text field:
+ *   <input ui-input id="name" />
  *
- * Campo com ícone ou texto ao lado (o grupo desenha a borda e o foco):
+ * Field with an icon or text beside it (the group draws the border and focus):
  *   <div ui-input-group>
  *     <span ui-input-group-addon><ui-icon name="search" /></span>
- *     <input ui-input-group-input id="busca" type="search" />
+ *     <input ui-input-group-input id="search" type="search" />
  *   </div>
  */
 

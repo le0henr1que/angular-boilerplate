@@ -1,0 +1,36 @@
+<section class="page">
+  <header class="page-title">
+    <h1>Catálogo</h1>
+    <p>Busca, filtros, ordenação e paginação feitos pela API (GET /catalogo).</p>
+  </header>
+
+  <app-list-table
+    [source]="source"
+    [columns]="columns"
+    [filters]="filters"
+    [pageSizeOptions]="pageSizeOptions"
+    searchPlaceholder="Produto ou fornecedor"
+    errorTitle="Não foi possível carregar o catálogo"
+    emptyMessage="Nenhum item encontrado com esses filtros."
+  >
+    <!-- Specific filters (children): search, "Limpar" and pagination are built in. -->
+    <app-list-table-options-filter
+      class="category-field"
+      label="Categoria"
+      allLabel="Todas"
+      [filter]="filters.category"
+      [options]="categories"
+    />
+    <app-list-table-boolean-filter label="Só estoque baixo" [filter]="filters.lowStock" />
+
+    <ng-template [uiCell]="column.price" let-price>
+      <span class="amount">{{ price | currency: 'BRL' }}</span>
+    </ng-template>
+    <ng-template [uiCell]="column.stock" let-quantity let-item="row">
+      <span class="amount">{{ quantity }}</span>
+      @if (isLowStock(item)) {
+        <span ui-badge variant="destructive" class="low-stock-badge">Baixo</span>
+      }
+    </ng-template>
+  </app-list-table>
+</section>

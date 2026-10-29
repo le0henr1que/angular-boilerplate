@@ -7,15 +7,11 @@ import { UiIcon } from '@supermercado/ui/icon';
 import { UiSpinner } from '@supermercado/ui/spinner';
 import { injectIsFetching } from '@tanstack/angular-query-experimental';
 import { Auth } from '@core/auth/auth';
-import { APP_CONFIG, type AppEnvironment } from '@core/config/app-config';
+import { ROLE } from '@core/auth/auth.enums';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
 import { injectFeatures } from '@core/config/feature-flags';
-import { injectTema } from '@core/theme/inject-tema';
-
-const ROTULO_AMBIENTE: Record<AppEnvironment, string | null> = {
-  development: 'Desenvolvimento',
-  homologation: 'Homologação',
-  production: null,
-};
+import { injectTheme } from '@core/theme/inject-theme';
+import { ENVIRONMENT_LABEL, THEME_TOGGLE } from './header.constants';
 
 @Component({
   selector: 'app-header',
@@ -24,49 +20,50 @@ const ROTULO_AMBIENTE: Record<AppEnvironment, string | null> = {
   template: `
     <header ui-header>
       <a ui-header-brand routerLink="/">
-        <ui-icon name="shopping-cart" class="marca-icone" />
+        <ui-icon name="shopping-cart" class="brand-icon" />
         {{ appName }}
       </a>
-      <!-- Fora de produção, deixa claro em que ambiente se está (evita testar "em prod"). -->
-      @if (ambiente) {
-        <span ui-badge variant="destructive" class="ambiente">{{ ambiente }}</span>
+      <!-- Outside production, makes clear which environment you are in (avoids testing "in prod"). -->
+      @if (environment) {
+        <span ui-badge variant="destructive" class="environment">{{ environment }}</span>
       }
 
-      <nav ui-header-nav aria-label="Principal" class="navegacao">
-        @for (link of links(); track link.rota) {
+      <nav ui-header-nav aria-label="Principal" class="navigation">
+        @for (link of links(); track link.route) {
           <a
             ui-button
             variant="ghost"
             size="sm"
-            [routerLink]="link.rota"
-            routerLinkActive="ativo"
+            [routerLink]="link.route"
+            routerLinkActive="active"
             ariaCurrentWhenActive="page"
           >
-            {{ link.rotulo }}
+            {{ link.label }}
           </a>
         }
       </nav>
 
       <div ui-header-actions>
-        @if (auth.usuario(); as usuario) {
-          <span class="usuario">{{ usuario.nome }}</span>
-          <button ui-button variant="outline" size="sm" type="button" (click)="auth.sair()">
+        @if (auth.user(); as user) {
+          <span class="user">{{ user.name }}</span>
+          <button ui-button variant="outline" size="sm" type="button" (click)="auth.signOut()">
             Sair
           </button>
         }
-        <!-- Indicador global: aparece sempre que QUALQUER query está buscando dados. -->
-        @if (buscando() > 0) {
-          <ui-spinner aria-label="Sincronizando dados" class="carregando" />
+        <!-- Global indicator: shows whenever ANY query is fetching data. -->
+        @if (fetching() > 0) {
+          <ui-spinner aria-label="Sincronizando dados" class="fetching" />
         }
+        @let toggle = themeToggle[theme.theme()];
         <button
           ui-button
           variant="ghost"
           size="icon"
           type="button"
-          [attr.aria-label]="tema.tema() === 'escuro' ? 'Usar tema claro' : 'Usar tema escuro'"
-          (click)="tema.alternar()"
+          [attr.aria-label]="toggle.label"
+          (click)="theme.toggle()"
         >
-          <ui-icon [name]="tema.tema() === 'escuro' ? 'sun' : 'moon'" />
+          <ui-icon [name]="toggle.icon" />
         </button>
       </div>
     </header>
@@ -76,27 +73,29 @@ const ROTULO_AMBIENTE: Record<AppEnvironment, string | null> = {
 export class AppHeader {
   readonly #config = inject(APP_CONFIG);
   protected readonly appName = this.#config.appName;
-  /** Rótulo do ambiente; `null` em produção (sem badge). */
-  protected readonly ambiente = ROTULO_AMBIENTE[this.#config.environment];
-  protected readonly tema = injectTema();
-  protected readonly buscando = injectIsFetching();
+  /** Environment label; `null` in production (no badge). */
+  protected readonly environment = ENVIRONMENT_LABEL[this.#config.environment];
+  protected readonly theme = injectTheme();
+  protected readonly themeToggle = THEME_TOGGLE;
+  protected readonly fetching = injectIsFetching();
   protected readonly auth = inject(Auth);
   readonly #features = injectFeatures();
 
-  /** Menu segue as mesmas regras das rotas: flag desligada ou sem papel = link some. */
+  /** The menu follows the same rules as the routes: flag off or no role = the link disappears. */
   protected readonly links = computed(() => {
-    // Com login ligado, nada de menu antes de entrar.
-    if (this.auth.ativa && !this.auth.autenticado()) return [];
+    // With login on, no menu before signing in.
+    if (this.auth.enabled && !this.auth.authenticated()) return [];
     return [
-      { rota: '/inicio', rotulo: 'Início', visivel: true },
-      { rota: '/produtos', rotulo: 'Produtos', visivel: true },
-      { rota: '/catalogo', rotulo: 'Catálogo', visivel: true },
-      { rota: '/fornecedores', rotulo: 'Fornecedores', visivel: this.#features.fornecedores },
+      { route: '/inicio', label: 'Início', visible: true },
+      { route: '/produtos', label: 'Produtos', visible: true },
+      { route: '/catalogo', label: 'Catálogo', visible: true },
+      { route: '/ecossistema', label: 'Ecossistema', visible: true },
+      { route: '/fornecedores', label: 'Fornecedores', visible: this.#features.suppliers },
       {
-        rota: '/admin',
-        rotulo: 'Admin',
-        visivel: this.#features.areaAdmin && this.auth.podeAcessar('admin'),
+        route: '/admin',
+        label: 'Admin',
+        visible: this.#features.adminArea && this.auth.canAccess(ROLE.admin),
       },
-    ].filter((link) => link.visivel);
+    ].filter((link) => link.visible);
   });
 }

@@ -1,32 +1,33 @@
 import { inject, Injectable } from '@angular/core';
-import { APP_CONFIG } from '@core/config/app-config';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
+import { AUTH_MODE } from '@core/config/app-config.enums';
+import { type User } from '../auth.types';
 import { BffAuthGateway } from './bff-auth-gateway';
+import { LazyMsalAuthGateway } from './lazy-msal-auth-gateway';
 import { MockAuthGateway } from './mock-auth-gateway';
-import { MsalAuthGatewaySobDemanda } from './msal-auth-gateway-sob-demanda';
-import { type Usuario } from '../usuario';
 
 /**
- * Como o app conversa com quem autentica. O resto do app só conhece o serviço `Auth`;
- * trocar mock ↔ bff ↔ msal é só mudar `auth.modo` no environment.
+ * How the app talks to whoever authenticates. The rest of the app only knows the `Auth` service;
+ * switching mock ↔ bff ↔ msal is just changing `auth.mode` in the environment.
  */
 @Injectable({
   providedIn: 'root',
   useFactory: (): AuthGateway => {
-    switch (inject(APP_CONFIG).auth.modo) {
-      case 'mock':
+    switch (inject(APP_CONFIG).auth.mode) {
+      case AUTH_MODE.mock:
         return inject(MockAuthGateway);
-      case 'bff':
+      case AUTH_MODE.bff:
         return inject(BffAuthGateway);
-      case 'msal':
-        // Sob demanda: o MSAL (~320 kB) só é baixado quando este modo é usado.
-        return inject(MsalAuthGatewaySobDemanda);
+      case AUTH_MODE.msal:
+        // Lazy: MSAL (~320 kB) is only downloaded when this mode is used.
+        return inject(LazyMsalAuthGateway);
     }
   },
 })
 export abstract class AuthGateway {
-  /** Quem está logado agora, ou null. Roda antes da 1ª rota (provideAuth). */
-  abstract buscarUsuario(): Promise<Usuario | null>;
-  /** Inicia o login. `persona` só existe no modo mock. */
-  abstract entrar(voltarPara: string, persona?: string): Promise<void>;
-  abstract sair(): Promise<void>;
+  /** Who is signed in right now, or null. Runs before the 1st route (provideAuth). */
+  abstract fetchUser(): Promise<User | null>;
+  /** Starts the sign-in. `persona` only exists in mock mode. */
+  abstract signIn(returnTo: string, persona?: string): Promise<void>;
+  abstract signOut(): Promise<void>;
 }

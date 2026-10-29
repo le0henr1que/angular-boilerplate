@@ -2,94 +2,95 @@ import { provideHttpClient, withInterceptors } from '@angular/common/http';
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
-import { type FeatureFlags } from '@core/config/feature-flags';
-import { provideTestAppConfig } from '@testing/test-config';
-import { Auth, destinoInterno } from '@core/auth/auth';
+import { Auth } from '@core/auth/auth';
+import { internalDestination } from '@core/auth/auth.utils';
 import { authInterceptor } from '@core/auth/http/auth.interceptor';
+import { type FeatureFlags } from '@core/config/feature-flags.types';
+import { provideTestAppConfig } from '@testing/test-config';
 import { mockAuthInterceptor } from './mock-auth.interceptor';
-import { apagarSessaoMock, lerSessaoMock } from './sessao-mock';
+import { clearMockSession, readMockSession } from './mock-session';
 
 @Component({ template: '' })
-class Vazia {}
+class Empty {}
 
-/** Auth real + gateway mock + API mock de auth: o fluxo inteiro do cookie, sem backend. */
-function configurar(features: Partial<FeatureFlags> = {}) {
+/** Real Auth + mock gateway + mock auth API: the whole cookie flow, without a backend. */
+function configure(features: Partial<FeatureFlags> = {}) {
   TestBed.configureTestingModule({
     providers: [
-      provideTestAppConfig({ features: { autenticacao: true, ...features } }),
+      provideTestAppConfig({ features: { authentication: true, ...features } }),
       provideHttpClient(withInterceptors([authInterceptor, mockAuthInterceptor])),
-      provideRouter([{ path: '**', component: Vazia }]),
+      provideRouter([{ path: '**', component: Empty }]),
     ],
   });
   return TestBed.inject(Auth);
 }
 
-describe('Auth (modo mock, sessão por cookie)', () => {
-  beforeEach(() => apagarSessaoMock());
-  afterEach(() => apagarSessaoMock());
+describe('Auth (mock mode, cookie session)', () => {
+  beforeEach(() => clearMockSession());
+  afterEach(() => clearMockSession());
 
-  it('sem cookie de sessão, ninguém está logado', async () => {
-    const auth = configurar();
-    await auth.carregarSessao();
-    expect(auth.autenticado()).toBe(false);
+  it('without a session cookie, nobody is signed in', async () => {
+    const auth = configure();
+    await auth.loadSession();
+    expect(auth.authenticated()).toBe(false);
   });
 
-  it('entrar cria o cookie, carrega o usuário e volta para a URL pedida', async () => {
-    const auth = configurar();
-    await auth.entrar('/produtos/HO-1', 'operador');
+  it('signIn creates the cookie, loads the user and goes back to the requested URL', async () => {
+    const auth = configure();
+    await auth.signIn('/produtos/HO-1', 'operator');
 
-    expect(lerSessaoMock()?.id).toBe('operador');
-    expect(auth.usuario()?.nome).toBe('Carlos Operador');
+    expect(readMockSession()?.id).toBe('operator');
+    expect(auth.user()?.name).toBe('Carlos Operador');
     expect(TestBed.inject(Router).url).toBe('/produtos/HO-1');
   });
 
-  it('a sessão sobrevive a um "F5": um Auth novo lê o mesmo cookie', async () => {
-    await configurar().entrar('/inicio', 'admin');
+  it('the session survives an "F5": a new Auth reads the same cookie', async () => {
+    await configure().signIn('/inicio', 'admin');
     TestBed.resetTestingModule();
 
-    const auth = configurar();
-    await auth.carregarSessao();
-    expect(auth.usuario()?.nome).toBe('Ana Admin');
+    const auth = configure();
+    await auth.loadSession();
+    expect(auth.user()?.name).toBe('Ana Admin');
   });
 
-  it('sair apaga o cookie e manda para o login', async () => {
-    const auth = configurar();
-    await auth.entrar('/inicio', 'admin');
-    await auth.sair();
+  it('signOut deletes the cookie and sends to the login', async () => {
+    const auth = configure();
+    await auth.signIn('/inicio', 'admin');
+    await auth.signOut();
 
-    expect(lerSessaoMock()).toBeNull();
-    expect(auth.autenticado()).toBe(false);
+    expect(readMockSession()).toBeNull();
+    expect(auth.authenticated()).toBe(false);
     expect(TestBed.inject(Router).url).toBe('/login');
   });
 
-  it('podeAcessar respeita papel e a flag controleDePapeis', async () => {
-    const auth = configurar();
-    await auth.entrar('/inicio', 'cliente');
-    expect(auth.podeAcessar('admin')).toBe(false);
-    expect(auth.podeAcessar('cliente')).toBe(true);
+  it('canAccess honors the role and the roleControl flag', async () => {
+    const auth = configure();
+    await auth.signIn('/inicio', 'customer');
+    expect(auth.canAccess('admin')).toBe(false);
+    expect(auth.canAccess('customer')).toBe(true);
 
     TestBed.resetTestingModule();
-    const semPapeis = configurar({ controleDePapeis: false });
-    await semPapeis.carregarSessao();
-    expect(semPapeis.podeAcessar('admin')).toBe(true);
+    const withoutRoles = configure({ roleControl: false });
+    await withoutRoles.loadSession();
+    expect(withoutRoles.canAccess('admin')).toBe(true);
   });
 
-  it('com a flag autenticacao desligada não consulta sessão e libera tudo', async () => {
-    const auth = configurar({ autenticacao: false });
-    await auth.carregarSessao();
-    expect(auth.ativa).toBe(false);
-    expect(auth.podeAcessar('admin')).toBe(true);
+  it('with the authentication flag off it does not check the session and allows everything', async () => {
+    const auth = configure({ authentication: false });
+    await auth.loadSession();
+    expect(auth.enabled).toBe(false);
+    expect(auth.canAccess('admin')).toBe(true);
   });
 });
 
-describe('destinoInterno (proteção contra open redirect)', () => {
+describe('internalDestination (open redirect protection)', () => {
   it.each([
     ['/produtos?q=1', '/produtos?q=1'],
-    ['https://golpe.com', '/inicio'],
-    ['//golpe.com', '/inicio'],
+    ['https://scam.com', '/inicio'],
+    ['//scam.com', '/inicio'],
     ['javascript:alert(1)', '/inicio'],
     [undefined, '/inicio'],
-  ])('%s → %s', (entrada, esperado) => {
-    expect(destinoInterno(entrada)).toBe(esperado);
+  ])('%s → %s', (input, expected) => {
+    expect(internalDestination(input)).toBe(expected);
   });
 });

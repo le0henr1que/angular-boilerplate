@@ -1,11 +1,9 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
-
-export type ButtonVariant = 'default' | 'secondary' | 'outline' | 'ghost' | 'destructive' | 'link';
-export type ButtonSize = 'default' | 'sm' | 'lg' | 'icon';
+import { type ButtonSize, type ButtonVariant } from './ui-button.types';
 
 /**
- * Botão. Aplica-se a um <button> ou <a> nativo, para manter a semântica e a
- * acessibilidade do navegador (teclado, foco, leitor de tela):
+ * Button. Applied to a native <button> or <a>, to keep the browser's semantics and
+ * accessibility (keyboard, focus, screen reader):
  *
  *   <button ui-button variant="outline" size="sm">Salvar</button>
  *   <a ui-button routerLink="/inicio">Início</a>

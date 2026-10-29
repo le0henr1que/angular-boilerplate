@@ -1,11 +1,11 @@
-/* Tema da biblioteca (cores, tipografia, claro/escuro). Ver projects/ui/styles/supermercado.css. */
+/* Library theme (colors, typography, light/dark). See projects/ui/styles/supermercado.css. */
 @import '../../ui/styles/supermercado.css';
 
 /*
- * Layout comum das páginas do portal. Estilo específico de cada tela fica no próprio
- * componente (styles / styleUrl); aqui só o que se repete em todas.
+ * Common layout of the portal pages. Each screen's own styles live in the component itself
+ * (styles / styleUrl); only what repeats on every page lives here.
  */
-.pagina {
+.page {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
@@ -14,22 +14,22 @@
   padding: 2rem 1rem;
 }
 
-.pagina.estreita {
+.page.narrow {
   max-width: 48rem;
 }
 
-.titulo-pagina h1 {
+.page-title h1 {
   font-size: var(--text-2xl);
   font-weight: 600;
   letter-spacing: -0.025em;
 }
 
 /*
- * Carregamento global: tela cheia com um spinner, do primeiro byte até a 1ª tela pronta (e na
- * ida para o login da Microsoft). Usado no index.html (antes do Angular) e no App (depois),
- * com o mesmo HTML: a troca de um pelo outro é invisível. Só CSS, sem depender do Angular.
+ * Global loading: full screen with a spinner, from the first byte until the 1st screen is ready
+ * (and while heading to the Microsoft login). Used in index.html (before Angular) and in App
+ * (after), with the same HTML: swapping one for the other is invisible. CSS only, no Angular needed.
  */
-.carregamento-global {
+.global-loading {
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -39,29 +39,29 @@
   color: var(--muted-foreground);
 }
 
-.carregamento-global-spinner {
+.global-loading-spinner {
   width: 2rem;
   height: 2rem;
   border: 3px solid currentColor;
   border-right-color: transparent;
   border-radius: 50%;
   opacity: 0.7;
-  animation: carregamento-global-girar 0.8s linear infinite;
+  animation: global-loading-spin 0.8s linear infinite;
 }
 
-@keyframes carregamento-global-girar {
+@keyframes global-loading-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .carregamento-global-spinner {
+  .global-loading-spinner {
     animation-duration: 2.4s;
   }
 }
 
-.titulo-pagina p {
+.page-title p {
   margin-top: 0.25rem;
   color: var(--muted-foreground);
   font-size: var(--text-sm);

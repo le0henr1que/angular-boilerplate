@@ -1,45 +1,47 @@
 import { inject } from '@angular/core';
 import { type CanMatchFn, Router } from '@angular/router';
 import { Auth } from '../auth';
-import { type Papel } from '../usuario';
+import { AUTH_PATHS, DEFAULT_DESTINATION } from '../auth.constants';
+import { type Role } from '../auth.enums';
 
-/** URL que o usuário tentou abrir, para devolver ele lá depois do login. */
-function urlDestino(router: Router): string {
-  const navegacao = router.currentNavigation();
-  return navegacao ? router.serializeUrl(navegacao.extractedUrl) : router.url;
+/** URL the user tried to open, to send them back there after login. */
+function targetUrl(router: Router): string {
+  const navigation = router.currentNavigation();
+  return navigation ? router.serializeUrl(navigation.extractedUrl) : router.url;
 }
 
 /**
- * Gate: só entra logado. É `canMatch`: quem não passa nem baixa o JS da rota.
- * Quem não está logado vai para o login (mock: tela /login; bff: direto para a Microsoft).
- * Com a flag `autenticacao` desligada, sempre passa.
+ * Gate: signed-in users only. It is `canMatch`: whoever doesn't pass doesn't even download the
+ * route's JS. Signed-out users go to the login (mock: /login screen; bff: straight to Microsoft).
+ * With the `authentication` flag off, it always passes.
  */
-export const exigeLogin: CanMatchFn = () => {
+export const requireLogin: CanMatchFn = () => {
   const auth = inject(Auth);
-  if (!auth.ativa || auth.autenticado()) return true;
-  return auth.irParaLogin(urlDestino(inject(Router)));
+  if (!auth.enabled || auth.authenticated()) return true;
+  return auth.goToLogin(targetUrl(inject(Router)));
 };
 
-/** Gate: só entra quem tem um dos papéis. Respeita as flags `autenticacao` e `controleDePapeis`. */
-export function exigePapel(...papeis: Papel[]): CanMatchFn {
+/** Gate: only users with one of the roles. Honors the `authentication` and `roleControl` flags. */
+export function requireRole(...roles: Role[]): CanMatchFn {
   return () => {
     const auth = inject(Auth);
     const router = inject(Router);
-    if (auth.ativa && !auth.autenticado()) return auth.irParaLogin(urlDestino(router));
-    return auth.podeAcessar(...papeis) || router.createUrlTree(['/sem-permissao']);
+    if (auth.enabled && !auth.authenticated()) return auth.goToLogin(targetUrl(router));
+    return auth.canAccess(...roles) || router.createUrlTree([AUTH_PATHS.forbidden]);
   };
 }
 
-/** Gate das telas públicas de sessão: só para quem NÃO está logado (e só com autenticação ligada). */
-export const apenasVisitante: CanMatchFn = () => {
+/** Gate for the public session screens: only for users NOT signed in (and only with authentication on). */
+export const guestOnly: CanMatchFn = () => {
   const auth = inject(Auth);
-  if (auth.ativa && !auth.autenticado()) return true;
-  return inject(Router).createUrlTree(['/inicio']);
+  if (auth.enabled && !auth.authenticated()) return true;
+  return inject(Router).createUrlTree([DEFAULT_DESTINATION]);
 };
 
 /**
- * Gate da tela /login: ela só existe no login simulado (mock).
- * No bff, quem abrir /login (favorito antigo) vai para /inicio, e de lá o exigeLogin leva à Microsoft.
+ * Gate for the /login screen: it only exists with the simulated (mock) login.
+ * In bff, whoever opens /login (old bookmark) goes to /inicio, and from there requireLogin
+ * leads to Microsoft.
  */
-export const apenasLoginSimulado: CanMatchFn = () =>
-  inject(Auth).temTelaDeLogin || inject(Router).createUrlTree(['/inicio']);
+export const mockLoginOnly: CanMatchFn = () =>
+  inject(Auth).hasLoginScreen || inject(Router).createUrlTree([DEFAULT_DESTINATION]);

@@ -1,176 +1,177 @@
 import { DOCUMENT } from '@angular/common';
 import { inject, Injectable } from '@angular/core';
 import { type AccountInfo } from '@azure/msal-browser';
-import { APP_CONFIG } from '@core/config/app-config';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
 import { Logger } from '@core/logging/logger';
-import { destinoInterno } from '../destino-interno';
-import { MSAL } from '../msal/provide-msal';
-import { type Papel, type Usuario } from '../usuario';
+import { type Role, ROLES } from '../auth.enums';
+import { type User } from '../auth.types';
+import { internalDestination } from '../auth.utils';
+import { MSAL } from '../msal/msal.tokens';
 import type { AuthGateway } from './auth-gateway';
 
-const PAPEIS: readonly Papel[] = ['admin', 'operador', 'cliente'];
-
-/** Promise que nunca termina: a página está saindo (redirect), nada depois dela deve rodar. */
-const paginaSaindo = () => new Promise<never>(() => undefined);
+/** A Promise that never settles: the page is leaving (redirect), nothing after it should run. */
+const pageLeaving = () => new Promise<never>(() => undefined);
 
 /**
- * Conta da Microsoft → Usuario do app.
- * Os papéis vêm da claim `roles` do id token: são os "App roles" do registro do app,
- * atribuídos a usuários/grupos em Enterprise applications. Roles desconhecidas são ignoradas.
+ * Microsoft account → app User.
+ * Roles come from the id token's `roles` claim: they are the app registration's "App roles",
+ * assigned to users/groups in Enterprise applications. Unknown roles are ignored.
  */
-export function paraUsuario(conta: AccountInfo): Usuario {
-  const roles = conta.idTokenClaims?.roles ?? [];
+export function toUser(account: AccountInfo): User {
+  const roles = account.idTokenClaims?.roles ?? [];
   return {
-    id: conta.localAccountId || conta.homeAccountId,
-    nome: conta.name ?? conta.username,
-    email: conta.username,
-    papeis: roles.filter((role): role is Papel => PAPEIS.includes(role as Papel)),
+    id: account.localAccountId || account.homeAccountId,
+    name: account.name ?? account.username,
+    email: account.username,
+    roles: roles.filter((role): role is Role => ROLES.includes(role as Role)),
   };
 }
 
 /**
- * Azure AD / Entra ID direto no front, com MSAL. O fluxo:
+ * Azure AD / Entra ID in the front end, with MSAL. The flow:
  *
- *   1. entrar('/produtos') → loginRedirect: a página vai para login.microsoftonline.com
- *      levando o destino no `state`
- *   2. a Microsoft volta para auth.msal.redirectUri com o código na URL
- *   3. o app abre de novo; buscarUsuario() (antes da 1ª rota) troca o código pelos tokens,
- *      põe a URL em '/produtos' e devolve o usuário
- *   4. os gates liberam e a tela abre; o msalTokenInterceptor manda o token para a API
+ *   1. signIn('/produtos') → loginRedirect: the page goes to login.microsoftonline.com
+ *      carrying the destination in `state`
+ *   2. Microsoft comes back to auth.msal.redirectUri with the code in the URL
+ *   3. the app opens again; fetchUser() (before the 1st route) exchanges the code for tokens,
+ *      sets the URL to '/produtos' and returns the user
+ *   4. the gates let it through and the screen opens; msalTokenInterceptor sends the token to the API
  */
 @Injectable({ providedIn: 'root' })
 export class MsalAuthGateway implements AuthGateway {
   readonly #msal = inject(MSAL);
   readonly #document = inject(DOCUMENT);
-  readonly #log = inject(Logger).com('auth');
+  readonly #log = inject(Logger).withContext('auth');
   readonly #config = inject(APP_CONFIG).auth.msal;
   readonly #scopes = (this.#config?.apis ?? []).flatMap((api) => api.scopes);
 
-  async buscarUsuario(): Promise<Usuario | null> {
-    // A Microsoft devolve o código na URL (#code=... ou ?code=..., conforme o responseMode).
-    // Só registramos SE veio, nunca o valor: o código vale como credencial até virar token.
-    const local = this.#document.defaultView?.location;
-    const voltandoDaMicrosoft = /[#&?](code|error)=/.test(`${local?.search}${local?.hash}`);
+  async fetchUser(): Promise<User | null> {
+    // Microsoft returns the code in the URL (#code=... or ?code=..., depending on responseMode).
+    // We only log WHETHER it came, never the value: the code works as a credential until it becomes a token.
+    const location = this.#document.defaultView?.location;
+    const returningFromMicrosoft = /[#&?](code|error)=/.test(
+      `${location?.search}${location?.hash}`,
+    );
     try {
-      const fimInit = this.#log.medir('MSAL inicializado');
+      const initDone = this.#log.time('MSAL initialized');
       await this.#msal.initialize();
-      fimInit();
+      initDone();
 
-      if (voltandoDaMicrosoft) {
-        this.#log.debug('URL tem a resposta da Microsoft: trocando o código pelos tokens');
+      if (returningFromMicrosoft) {
+        this.#log.debug('URL has the Microsoft response: exchanging the code for tokens');
       }
-      // navigateToLoginRequestUrl: false → o MSAL não recarrega a página; nós mesmos
-      // pomos a URL no destino (passo 3), antes de o router fazer a 1ª navegação.
-      const fimRedirect = this.#log.medir('retorno do redirect processado');
-      const resultado = await this.#msal.handleRedirectPromise({
+      // navigateToLoginRequestUrl: false → MSAL doesn't reload the page; we set the URL to the
+      // destination ourselves (step 3), before the router's 1st navigation.
+      const redirectDone = this.#log.time('redirect response processed');
+      const result = await this.#msal.handleRedirectPromise({
         navigateToLoginRequestUrl: false,
       });
-      fimRedirect();
+      redirectDone();
 
       const instance = this.#msal;
-      const contas = instance.getAllAccounts();
-      const conta = resultado?.account ?? instance.getActiveAccount() ?? contas[0] ?? null;
-      if (!conta) {
-        this.#log.debug('nenhuma conta da Microsoft no cache: usuário não logado', {
-          voltandoDaMicrosoft,
+      const accounts = instance.getAllAccounts();
+      const account = result?.account ?? instance.getActiveAccount() ?? accounts[0] ?? null;
+      if (!account) {
+        this.#log.debug('no Microsoft account in the cache: user not signed in', {
+          returningFromMicrosoft,
         });
         return null;
       }
 
-      const origem = resultado?.account ? 'redirect' : 'cache';
-      instance.setActiveAccount(conta);
-      if (contas.length > 1) {
-        this.#log.warn('mais de uma conta da Microsoft no cache: usando a primeira', {
-          contas: contas.length,
+      const source = result?.account ? 'redirect' : 'cache';
+      instance.setActiveAccount(account);
+      if (accounts.length > 1) {
+        this.#log.warn('more than one Microsoft account in the cache: using the first', {
+          accounts: accounts.length,
         });
       }
 
-      const usuario = paraUsuario(conta);
-      const roles = conta.idTokenClaims?.roles ?? [];
-      const ignoradas = roles.filter((role) => !PAPEIS.includes(role as Papel));
-      this.#log.debug('conta da Microsoft encontrada', {
-        origem,
-        tenant: conta.tenantId,
+      const user = toUser(account);
+      const roles = account.idTokenClaims?.roles ?? [];
+      const ignored = roles.filter((role) => !ROLES.includes(role as Role));
+      this.#log.debug('Microsoft account found', {
+        source,
+        tenant: account.tenantId,
         roles,
-        expiraEm: expiracao(conta),
+        expiresAt: expiration(account),
       });
-      if (ignoradas.length > 0) {
-        this.#log.warn('roles do token sem papel correspondente no app foram ignoradas', {
-          ignoradas,
-          conhecidas: PAPEIS,
+      if (ignored.length > 0) {
+        this.#log.warn('token roles without a matching app role were ignored', {
+          ignored,
+          known: ROLES,
         });
       }
 
-      if (resultado) {
-        this.#log.info('login na Microsoft concluído', {
-          usuario: usuario.id,
-          papeis: usuario.papeis,
-          scopes: resultado.scopes,
+      if (result) {
+        this.#log.info('Microsoft sign-in completed', {
+          user: user.id,
+          roles: user.roles,
+          scopes: result.scopes,
         });
       }
-      if (resultado?.state) {
-        const destino = destinoInterno(resultado.state);
-        this.#log.debug('voltando para onde o usuário queria ir', { destino });
-        this.#document.defaultView?.history.replaceState(null, '', destino);
+      if (result?.state) {
+        const destination = internalDestination(result.state);
+        this.#log.debug('going back to where the user wanted to go', { destination });
+        this.#document.defaultView?.history.replaceState(null, '', destination);
       }
-      return usuario;
-    } catch (erro) {
-      // Ex.: usuário cancelou, sem permissão no app, redirectUri não cadastrada.
-      // Sem usuário, o Auth mostra /erro-login em vez de tentar em loop.
-      this.#log.error('não foi possível concluir o login na Microsoft', erro);
-      this.#log.warn('detalhes da falha no login', { voltandoDaMicrosoft, ...detalhesMsal(erro) });
+      return user;
+    } catch (error) {
+      // E.g. the user cancelled, no permission on the app, redirectUri not registered.
+      // Without a user, Auth shows /erro-login instead of looping.
+      this.#log.error('could not complete the Microsoft sign-in', error);
+      this.#log.warn('sign-in failure details', { returningFromMicrosoft, ...msalDetails(error) });
       return null;
     }
   }
 
-  entrar(voltarPara: string): Promise<void> {
-    // clientId e authority não são segredo (vão na URL do login): ajudam a achar config errada.
-    this.#log.debug('abrindo o login da Microsoft (loginRedirect)', {
+  signIn(returnTo: string): Promise<void> {
+    // clientId and authority aren't secret (they go in the login URL): they help find bad config.
+    this.#log.debug('opening the Microsoft login (loginRedirect)', {
       authority: this.#config?.authority,
       clientId: this.#config?.clientId,
       redirectUri: this.#config?.redirectUri,
       scopes: this.#scopes,
-      state: voltarPara,
+      state: returnTo,
     });
-    // Pede já os scopes da API: o consentimento acontece no login, não na 1ª chamada.
-    // initialize() de novo é seguro (só roda uma vez) e garante a ordem que o MSAL exige.
+    // Ask for the API scopes right away: consent happens at sign-in, not on the 1st call.
+    // Calling initialize() again is safe (it only runs once) and guarantees the order MSAL requires.
     void this.#msal
       .initialize()
-      .then(() => this.#msal.loginRedirect({ scopes: this.#scopes, state: voltarPara }))
-      .catch((erro: unknown) => {
-        // Ex.: endpoints_resolution_error = authority inválida (tenant não existe).
-        this.#log.error('não foi possível abrir o login da Microsoft', erro);
-        this.#log.warn('detalhes da falha ao abrir o login', {
+      .then(() => this.#msal.loginRedirect({ scopes: this.#scopes, state: returnTo }))
+      .catch((error: unknown) => {
+        // E.g. endpoints_resolution_error = invalid authority (tenant doesn't exist).
+        this.#log.error('could not open the Microsoft login', error);
+        this.#log.warn('details of the failure to open the login', {
           authority: this.#config?.authority,
-          ...detalhesMsal(erro),
+          ...msalDetails(error),
         });
       });
-    return paginaSaindo();
+    return pageLeaving();
   }
 
-  sair(): Promise<void> {
-    this.#log.debug('saindo da conta da Microsoft (logoutRedirect)');
+  signOut(): Promise<void> {
+    this.#log.debug('signing out of the Microsoft account (logoutRedirect)');
     this.#msal
       .logoutRedirect({ account: this.#msal.getActiveAccount() })
-      .catch((erro: unknown) => this.#log.error('falha ao sair', erro));
-    return paginaSaindo();
+      .catch((error: unknown) => this.#log.error('failed to sign out', error));
+    return pageLeaving();
   }
 }
 
-/** Quando o id token expira, em ISO (claim `exp`, em segundos). */
-function expiracao(conta: AccountInfo): string | undefined {
-  const exp = conta.idTokenClaims?.exp;
+/** When the id token expires, in ISO (the `exp` claim, in seconds). */
+function expiration(account: AccountInfo): string | undefined {
+  const exp = account.idTokenClaims?.exp;
   return typeof exp === 'number' ? new Date(exp * 1000).toISOString() : undefined;
 }
 
 /**
- * Campos de diagnóstico dos erros do MSAL (AuthError). O `errorCode` diz o que houve
- * (ex.: user_cancelled, endpoints_resolution_error) e o `correlationId` é o que o suporte
- * da Microsoft pede para achar a requisição nos logs do Entra ID.
+ * Diagnostic fields of MSAL errors (AuthError). `errorCode` says what happened
+ * (e.g. user_cancelled, endpoints_resolution_error) and `correlationId` is what Microsoft
+ * support asks for to find the request in the Entra ID logs.
  */
-function detalhesMsal(erro: unknown): Record<string, unknown> {
-  if (typeof erro !== 'object' || erro === null) return {};
-  const { errorCode, subError, correlationId } = erro as Record<string, unknown>;
+function msalDetails(error: unknown): Record<string, unknown> {
+  if (typeof error !== 'object' || error === null) return {};
+  const { errorCode, subError, correlationId } = error as Record<string, unknown>;
   return Object.fromEntries(
     Object.entries({ errorCode, subError, correlationId }).filter(([, v]) => v),
   );

@@ -2,15 +2,15 @@ import { type ErrorHandler, inject, Injectable } from '@angular/core';
 import { Logger } from './logger';
 
 /**
- * Substitui o ErrorHandler do Angular: todo erro não tratado (em componente, em evento,
- * em Promise sem catch) passa pelo Logger. Assim ele aparece no console E vai para o backend.
- * Os erros da janela chegam aqui pelo `provideBrowserGlobalErrorListeners()` do app.config.ts.
+ * Replaces Angular's ErrorHandler: every unhandled error (in a component, an event handler,
+ * a Promise without catch) goes through the Logger. So it shows in the console AND reaches the backend.
+ * Window errors get here through `provideBrowserGlobalErrorListeners()` in app.config.ts.
  */
 @Injectable()
 export class LogErrorHandler implements ErrorHandler {
-  readonly #log = inject(Logger).com('erro');
+  readonly #log = inject(Logger).withContext('error');
 
-  handleError(erro: unknown): void {
-    this.#log.error('erro não tratado', erro);
+  handleError(error: unknown): void {
+    this.#log.error('unhandled error', error);
   }
 }

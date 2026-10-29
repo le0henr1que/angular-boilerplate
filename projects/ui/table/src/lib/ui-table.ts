@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /*
- * Tabela nativa (<table>) com visual próprio. Cada parte se estiliza sozinha:
+ * Native table (<table>) with its own look. Each part styles itself:
  *
  *   <div ui-table-container>
  *     <table ui-table>

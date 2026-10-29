@@ -5,21 +5,21 @@ const tseslint = require('typescript-eslint');
 const angular = require('angular-eslint');
 
 /**
- * Regras de fronteira (quem pode importar quem), no mesmo espírito do tarefas-app.
- * A biblioteca não pode depender do Storybook, e ninguém importa caminhos internos de outro
- * componente: tudo passa pelo ponto de entrada público (@supermercado/ui/<componente>).
+ * Boundary rules (who may import whom), in the same spirit as tarefas-app.
+ * The library can't depend on Storybook, and nobody imports another component's internal
+ * paths: everything goes through the public entry point (@supermercado/ui/<component>).
  */
-const restricoes = {
+const restrictions = {
   storybook: {
     group: ['**/storybook/**'],
-    message: 'A biblioteca não pode depender do Storybook.',
+    message: 'The library cannot depend on Storybook.',
   },
-  internoDeOutroComponente: {
+  otherComponentInternals: {
     group: ['../../../*/src/**', '@supermercado/ui/*/src/**'],
-    message: 'Importe pelo ponto de entrada público: @supermercado/ui/<componente>.',
+    message: 'Import through the public entry point: @supermercado/ui/<component>.',
   },
-  // Regra do projeto: nada de bibliotecas de estilo/componentes. Tudo é feito à mão em projects/ui.
-  semLibDeEstilo: {
+  // Project rule: no style/component libraries. Everything is hand-made in projects/ui.
+  noStyleLibrary: {
     group: [
       '@spartan-ng/*',
       '@angular/material',
@@ -37,38 +37,38 @@ const restricoes = {
       'tailwind-merge',
       'tailwindcss',
     ],
-    message: 'Sem bibliotecas de estilo: use (ou crie à mão) um componente em @supermercado/ui.',
+    message: 'No style libraries: use (or hand-make) a component in @supermercado/ui.',
   },
 
-  // ── Portal (mesmas regras do tarefas-app) ──
+  // ── Portal (same rules as tarefas-app) ──
   environment: {
     group: ['@env/*', '**/environments/*'],
-    message: 'Use inject(APP_CONFIG). Somente app.config.ts importa environments.',
+    message: 'Use inject(APP_CONFIG). Only app.config.ts imports environments.',
   },
   mocks: {
     group: ['**/mocks/**'],
-    message: 'A API simulada só é registrada no app.config.ts.',
+    message: 'The mock API is only registered in app.config.ts.',
   },
   features: {
     group: ['@features/*', '@features/*/**'],
-    message: 'core/ e shared/ não podem depender de features.',
+    message: 'core/ and shared/ cannot depend on features.',
   },
   core: {
     group: ['@core/*'],
-    message: 'shared/ deve ser genérico e não depender de core/.',
+    message: 'shared/ must be generic and not depend on core/.',
   },
-  internoDeOutraFeature: {
+  otherFeatureInternals: {
     group: ['@features/*/**', '../../../*/**'],
-    message: 'Use a API pública da outra feature: import { … } from "@features/<nome>".',
+    message: "Use the other feature's public API: import { … } from '@features/<name>'.",
   },
   dataAccess: {
     group: ['**/data-access/*'],
     message:
-      'Componentes de ui/ são apresentacionais: recebem dados por input() e emitem output().',
+      'ui/ components are presentational: they receive data through input() and emit output().',
   },
 };
 
-const proibir = (...grupos) => ['error', { patterns: grupos }];
+const forbid = (...groups) => ['error', { patterns: groups }];
 
 module.exports = defineConfig([
   { ignores: ['dist/**', 'out-tsc/**', 'node_modules/**', '.angular/**'] },
@@ -82,7 +82,7 @@ module.exports = defineConfig([
     ],
     processor: angular.processInlineTemplates,
     rules: {
-      'no-restricted-imports': proibir(restricoes.semLibDeEstilo),
+      'no-restricted-imports': forbid(restrictions.noStyleLibrary),
       '@angular-eslint/prefer-signals': 'error',
       '@typescript-eslint/consistent-type-imports': ['error', { fixStyle: 'inline-type-imports' }],
       'no-console': ['error', { allow: ['debug', 'error'] }],
@@ -90,8 +90,8 @@ module.exports = defineConfig([
     },
   },
   {
-    // Componentes visuais: seletores com prefixo "ui". A maioria se aplica a um elemento
-    // nativo, para manter a semântica: <button ui-button>, <table ui-table>, <input ui-input>.
+    // Visual components: selectors prefixed with "ui". Most apply to a native element,
+    // to keep the semantics: <button ui-button>, <table ui-table>, <input ui-input>.
     files: ['projects/ui/**/*.ts'],
     rules: {
       '@angular-eslint/directive-selector': [
@@ -102,12 +102,12 @@ module.exports = defineConfig([
         'error',
         { type: ['element', 'attribute'], prefix: 'ui', style: 'kebab-case' },
       ],
-      // "x != null" é o jeito idiomático de testar null e undefined juntos.
+      // "x != null" is the idiomatic way to test null and undefined together.
       eqeqeq: ['error', 'always', { null: 'ignore' }],
-      'no-restricted-imports': proibir(
-        restricoes.semLibDeEstilo,
-        restricoes.storybook,
-        restricoes.internoDeOutroComponente,
+      'no-restricted-imports': forbid(
+        restrictions.noStyleLibrary,
+        restrictions.storybook,
+        restrictions.otherComponentInternals,
       ),
     },
   },
@@ -128,62 +128,62 @@ module.exports = defineConfig([
     files: ['projects/portal/src/app/**/*.ts'],
     ignores: ['projects/portal/src/app/app.config.ts'],
     rules: {
-      'no-restricted-imports': proibir(
-        restricoes.semLibDeEstilo,
-        restricoes.environment,
-        restricoes.mocks,
+      'no-restricted-imports': forbid(
+        restrictions.noStyleLibrary,
+        restrictions.environment,
+        restrictions.mocks,
       ),
     },
   },
   {
     files: ['projects/portal/src/app/core/**/*.ts'],
     rules: {
-      'no-restricted-imports': proibir(
-        restricoes.semLibDeEstilo,
-        restricoes.environment,
-        restricoes.mocks,
-        restricoes.features,
+      'no-restricted-imports': forbid(
+        restrictions.noStyleLibrary,
+        restrictions.environment,
+        restrictions.mocks,
+        restrictions.features,
       ),
     },
   },
   {
     files: ['projects/portal/src/app/shared/**/*.ts'],
     rules: {
-      'no-restricted-imports': proibir(
-        restricoes.semLibDeEstilo,
-        restricoes.environment,
-        restricoes.mocks,
-        restricoes.features,
-        restricoes.core,
+      'no-restricted-imports': forbid(
+        restrictions.noStyleLibrary,
+        restrictions.environment,
+        restrictions.mocks,
+        restrictions.features,
+        restrictions.core,
       ),
     },
   },
   {
     files: ['projects/portal/src/app/features/**/*.ts'],
     rules: {
-      'no-restricted-imports': proibir(
-        restricoes.semLibDeEstilo,
-        restricoes.environment,
-        restricoes.mocks,
-        restricoes.internoDeOutraFeature,
+      'no-restricted-imports': forbid(
+        restrictions.noStyleLibrary,
+        restrictions.environment,
+        restrictions.mocks,
+        restrictions.otherFeatureInternals,
       ),
     },
   },
   {
     files: ['projects/portal/src/app/features/*/ui/**/*.ts'],
     rules: {
-      'no-restricted-imports': proibir(
-        restricoes.semLibDeEstilo,
-        restricoes.environment,
-        restricoes.mocks,
-        restricoes.internoDeOutraFeature,
-        restricoes.dataAccess,
+      'no-restricted-imports': forbid(
+        restrictions.noStyleLibrary,
+        restrictions.environment,
+        restrictions.mocks,
+        restrictions.otherFeatureInternals,
+        restrictions.dataAccess,
       ),
     },
   },
   {
-    // MSAL (~280 kB) fica fora do bundle inicial: só o chunk dele (core/auth/msal/msal.chunk.ts)
-    // pode importá-lo. Fora dele, só `import type` (some no build) e import() dinâmico.
+    // MSAL (~280 kB) stays out of the initial bundle: only its chunk (core/auth/msal/msal.chunk.ts)
+    // may import it. Outside of it, only `import type` (erased at build) and dynamic import().
     files: ['projects/portal/src/**/*.ts'],
     ignores: [
       '**/*.spec.ts',
@@ -207,7 +207,7 @@ module.exports = defineConfig([
               ],
               allowTypeImports: true,
               message:
-                'O MSAL só entra pelo CarregadorMsal (import() dinâmico); estático, iria para o bundle inicial.',
+                'MSAL only comes in through MsalLoader (dynamic import()); statically it would go into the initial bundle.',
             },
           ],
         },
@@ -215,18 +215,18 @@ module.exports = defineConfig([
     },
   },
   {
-    // O destino de console do Logger é o único lugar do portal que fala direto com o console.
-    files: ['projects/portal/src/app/core/logging/destinos/console.destino.ts'],
+    // The Logger's console target is the only place in the portal that talks to the console directly.
+    files: ['projects/portal/src/app/core/logging/targets/console.target.ts'],
     rules: { 'no-console': 'off' },
   },
   {
     files: ['projects/storybook/**/*.ts'],
     rules: {
-      'no-restricted-imports': proibir(
-        restricoes.semLibDeEstilo,
-        restricoes.internoDeOutroComponente,
+      'no-restricted-imports': forbid(
+        restrictions.noStyleLibrary,
+        restrictions.otherComponentInternals,
       ),
-      // Histórias são demonstração: Meta<{}> e console.log para mostrar eventos são normais aqui.
+      // Stories are demos: Meta<{}> and console.log to show events are normal here.
       '@typescript-eslint/no-empty-object-type': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
       'no-console': 'off',

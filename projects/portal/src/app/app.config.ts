@@ -3,6 +3,7 @@ import { provideHttpClient, withFetch, withInterceptors } from '@angular/common/
 import localePt from '@angular/common/locales/pt';
 import {
   type ApplicationConfig,
+  inject,
   LOCALE_ID,
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
@@ -13,17 +14,21 @@ import {
   withViewTransitions,
 } from '@angular/router';
 import { authInterceptor } from '@core/auth/http/auth.interceptor';
-import { msalTokenSobDemandaInterceptor } from '@core/auth/http/msal-token-sob-demanda.interceptor';
+import { lazyMsalTokenInterceptor } from '@core/auth/http/lazy-msal-token.interceptor';
 import { provideAuth } from '@core/auth/provide-auth';
 import { provideAppConfig } from '@core/config/app-config';
+import { AUTH_MODE } from '@core/config/app-config.enums';
+import { apiUrlInterceptor } from '@core/http/api-url.interceptor';
 import { logInterceptor } from '@core/logging/http/log.interceptor';
+import { Logger } from '@core/logging/logger';
 import { provideLogging } from '@core/logging/provide-logging';
-import { criarQueryClient } from '@core/query/query-client';
-import { PreloadPorFlag } from '@core/routing/preload-por-flag';
+import { createQueryClient } from '@core/query/query-client';
+import { FlagPreloadingStrategy } from '@core/routing/flag-preloading-strategy';
 import { environment } from '@env/environment';
+import { LIST_TABLE_LOGGER } from '@shared/list-table';
 import { provideTanStackQuery } from '@tanstack/angular-query-experimental';
 import { withDevtools } from '@tanstack/angular-query-experimental/devtools';
-import { mockApiInterceptorSobDemanda, mockAuthInterceptorSobDemanda } from '../mocks/sob-demanda';
+import { lazyMockApiInterceptor, lazyMockAuthInterceptor } from '../mocks/lazy-mocks';
 import { routes } from './app.routes';
 
 registerLocaleData(localePt);
@@ -36,31 +41,35 @@ export const appConfig: ApplicationConfig = {
     provideRouter(
       routes,
       withComponentInputBinding(),
-      ...(features.preload ? [withPreloading(PreloadPorFlag)] : []),
-      ...(features.transicoesDeTela ? [withViewTransitions({ skipInitialTransition: true })] : []),
+      ...(features.preload ? [withPreloading(FlagPreloadingStrategy)] : []),
+      ...(features.screenTransitions ? [withViewTransitions({ skipInitialTransition: true })] : []),
     ),
     provideAppConfig(environment),
-    // Logger, erros não tratados e navegação (níveis por ambiente em environment*.ts → log).
+    // Logger, unhandled errors and navigation (levels per environment in environment*.ts → log).
     provideLogging(),
+    // shared/ doesn't import core/: the list-table declares the contract and the app plugs in the Logger.
+    { provide: LIST_TABLE_LOGGER, useFactory: () => inject(Logger).withContext('list-table') },
     provideHttpClient(
       withFetch(),
-      // Ordem importa: o log fica por fora de todos (tempo total e status final) e o
-      // authInterceptor logo depois, para ver os 401 dos outros.
-      // MSAL e mocks são "sob demanda": cada um é um chunk separado, baixado só no modo que o
-      // usa. Importá-los aqui de forma estática os colocaria no bundle inicial de todo ambiente.
+      // Order matters: apiUrlInterceptor first, so every other one sees the final URL; then the
+      // log wraps the rest (total time and final status) and authInterceptor right after it, to
+      // see the others' 401s.
+      // MSAL and mocks are lazy: each one is a separate chunk, downloaded only in the mode that
+      // uses it. Importing them statically here would put them in every environment's initial bundle.
       withInterceptors([
+        apiUrlInterceptor,
         logInterceptor,
         authInterceptor,
-        ...(environment.auth.modo === 'msal' ? [msalTokenSobDemandaInterceptor] : []),
-        ...(environment.auth.modo === 'mock' ? [mockAuthInterceptorSobDemanda] : []),
-        ...(environment.mockApi ? [mockApiInterceptorSobDemanda] : []),
+        ...(environment.auth.mode === AUTH_MODE.msal ? [lazyMsalTokenInterceptor] : []),
+        ...(environment.auth.mode === AUTH_MODE.mock ? [lazyMockAuthInterceptor] : []),
+        ...(environment.mockApi ? [lazyMockApiInterceptor] : []),
       ]),
     ),
-    // Azure AD direto no front: os providers do MSAL entram no CarregadorMsal, sob demanda.
-    // Consulta a sessão antes da primeira rota (cookie no mock/bff, cache do MSAL no msal).
+    // Azure AD in the front end: the MSAL providers go into MsalLoader, lazily.
+    // Checks the session before the first route (cookie in mock/bff, MSAL cache in msal).
     provideAuth(),
-    // Cache do TanStack Query (regras globais em core/query/query-client.ts).
-    provideTanStackQuery(criarQueryClient(), ...(features.devtoolsQuery ? [withDevtools()] : [])),
+    // TanStack Query cache (global rules in core/query/query-client.ts).
+    provideTanStackQuery(createQueryClient(), ...(features.queryDevtools ? [withDevtools()] : [])),
     { provide: LOCALE_ID, useValue: 'pt-BR' },
   ],
 };

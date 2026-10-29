@@ -6,14 +6,14 @@ import { Auth } from '../auth';
 import { authInterceptor } from './auth.interceptor';
 
 describe('authInterceptor (cookie + CSRF + 401)', () => {
-  const auth = { sessaoExpirou: vi.fn() };
+  const auth = { sessionExpired: vi.fn() };
   let http: HttpClient;
   let backend: HttpTestingController;
 
-  function configurar(autenticacao = true) {
+  function configure(authentication = true) {
     TestBed.configureTestingModule({
       providers: [
-        provideTestAppConfig({ features: { autenticacao } }),
+        provideTestAppConfig({ features: { authentication } }),
         provideHttpClient(withInterceptors([authInterceptor])),
         provideHttpClientTesting(),
         { provide: Auth, useValue: auth },
@@ -28,8 +28,8 @@ describe('authInterceptor (cookie + CSRF + 401)', () => {
     vi.clearAllMocks();
   });
 
-  it('chamadas para a nossa API levam cookie (withCredentials) e o header anti-CSRF', () => {
-    configurar();
+  it('calls to our API carry the cookie (withCredentials) and the anti-CSRF header', () => {
+    configure();
     http.get('/api/produtos').subscribe();
     const req = backend.expectOne('/api/produtos');
     expect(req.request.withCredentials).toBe(true);
@@ -37,8 +37,8 @@ describe('authInterceptor (cookie + CSRF + 401)', () => {
     req.flush([]);
   });
 
-  it('chamadas para outros domínios não levam nada', () => {
-    configurar();
+  it('calls to other domains carry nothing', () => {
+    configure();
     http.get('https://cdn.exemplo.com/dados.json').subscribe();
     const req = backend.expectOne('https://cdn.exemplo.com/dados.json');
     expect(req.request.withCredentials).toBe(false);
@@ -46,26 +46,26 @@ describe('authInterceptor (cookie + CSRF + 401)', () => {
     req.flush({});
   });
 
-  it('401 da API = sessão expirada', () => {
-    configurar();
+  it('a 401 from the API = expired session', () => {
+    configure();
     http.get('/api/produtos').subscribe({ error: () => undefined });
     backend.expectOne('/api/produtos').flush(null, { status: 401, statusText: 'Unauthorized' });
-    expect(auth.sessaoExpirou).toHaveBeenCalledOnce();
+    expect(auth.sessionExpired).toHaveBeenCalledOnce();
   });
 
-  it('401 na consulta de sessão (/bff/user) é só "não logado", não expiração', () => {
-    configurar();
+  it('a 401 on the session check (/bff/user) just means "not signed in", not expiration', () => {
+    configure();
     http.get('/bff/user').subscribe({ error: () => undefined });
     backend.expectOne('/bff/user').flush(null, { status: 401, statusText: 'Unauthorized' });
-    expect(auth.sessaoExpirou).not.toHaveBeenCalled();
+    expect(auth.sessionExpired).not.toHaveBeenCalled();
   });
 
-  it('com a flag autenticacao desligada não mexe em nada', () => {
-    configurar(false);
+  it('with the authentication flag off it touches nothing', () => {
+    configure(false);
     http.get('/api/produtos').subscribe({ error: () => undefined });
     const req = backend.expectOne('/api/produtos');
     expect(req.request.withCredentials).toBe(false);
     req.flush(null, { status: 401, statusText: 'Unauthorized' });
-    expect(auth.sessaoExpirou).not.toHaveBeenCalled();
+    expect(auth.sessionExpired).not.toHaveBeenCalled();
   });
 });

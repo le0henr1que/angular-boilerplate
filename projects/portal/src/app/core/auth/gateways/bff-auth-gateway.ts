@@ -1,56 +1,54 @@
 import { DOCUMENT } from '@angular/common';
 import { HttpClient, HttpContext, HttpErrorResponse } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { APP_CONFIG } from '@core/config/app-config';
-import { STATUS_ESPERADOS } from '@core/logging/http/log.interceptor';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
+import { EXPECTED_STATUSES } from '@core/logging/logging.tokens';
 import { Logger } from '@core/logging/logger';
 import { firstValueFrom } from 'rxjs';
+import { type User } from '../auth.types';
 import type { AuthGateway } from './auth-gateway';
-import { type Usuario } from '../usuario';
 
-/** Promise que nunca termina: a página está saindo (redirect), nada depois dela deve rodar. */
-const paginaSaindo = () => new Promise<never>(() => undefined);
+/** A Promise that never settles: the page is leaving (redirect), nothing after it should run. */
+const pageLeaving = () => new Promise<never>(() => undefined);
 
 /**
- * Backend real (BFF). Com Azure AD o fluxo é:
+ * Real backend (BFF). With Azure AD the flow is:
  *
- *   1. entrar()  → navega para auth.urls.login?returnUrl=/produtos
- *   2. o backend redireciona para login.microsoftonline.com
- *   3. a Microsoft volta para o backend, que cria o cookie HttpOnly de sessão
- *   4. o backend redireciona para returnUrl; o app abre e buscarUsuario() responde 200
+ *   1. signIn()  → navigates to auth.urls.login?returnUrl=/produtos
+ *   2. the backend redirects to login.microsoftonline.com
+ *   3. Microsoft comes back to the backend, which creates the HttpOnly session cookie
+ *   4. the backend redirects to returnUrl; the app opens and fetchUser() answers 200
  *
- * O front nunca toca em token: o navegador manda o cookie sozinho.
+ * The front end never touches a token: the browser sends the cookie on its own.
  */
 @Injectable({ providedIn: 'root' })
 export class BffAuthGateway implements AuthGateway {
   protected readonly http = inject(HttpClient);
   protected readonly urls = inject(APP_CONFIG).auth.urls;
   readonly #document = inject(DOCUMENT);
-  readonly #log = inject(Logger).com('auth');
+  readonly #log = inject(Logger).withContext('auth');
 
-  async buscarUsuario(): Promise<Usuario | null> {
+  async fetchUser(): Promise<User | null> {
     try {
-      // 401 aqui é "ninguém logado": resposta normal, não aviso no log.
-      const context = new HttpContext().set(STATUS_ESPERADOS, [401]);
-      return await firstValueFrom(this.http.get<Usuario>(this.urls.usuario, { context }));
-    } catch (erro) {
-      // 401 = não logado (resposta normal). Outros erros: loga e trata como não logado.
-      if (!(erro instanceof HttpErrorResponse && erro.status === 401)) {
-        this.#log.error('não foi possível consultar a sessão', erro);
+      // A 401 here means "nobody signed in": a normal response, not a warning in the log.
+      const context = new HttpContext().set(EXPECTED_STATUSES, [401]);
+      return await firstValueFrom(this.http.get<User>(this.urls.user, { context }));
+    } catch (error) {
+      // 401 = not signed in (normal response). Other errors: log and treat as not signed in.
+      if (!(error instanceof HttpErrorResponse && error.status === 401)) {
+        this.#log.error('could not check the session', error);
       }
       return null;
     }
   }
 
-  entrar(voltarPara: string): Promise<void> {
-    this.#document.location.assign(
-      `${this.urls.login}?returnUrl=${encodeURIComponent(voltarPara)}`,
-    );
-    return paginaSaindo();
+  signIn(returnTo: string): Promise<void> {
+    this.#document.location.assign(`${this.urls.login}?returnUrl=${encodeURIComponent(returnTo)}`);
+    return pageLeaving();
   }
 
-  sair(): Promise<void> {
+  signOut(): Promise<void> {
     this.#document.location.assign(this.urls.logout);
-    return paginaSaindo();
+    return pageLeaving();
   }
 }

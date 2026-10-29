@@ -1,8 +1,7 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { type BadgeVariant } from './ui-badge.types';
 
-export type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
-
-/** Etiqueta curta: <span ui-badge variant="secondary">Estoque baixo</span> */
+/** Short tag: <span ui-badge variant="secondary">Estoque baixo</span> */
 @Component({
   selector: '[ui-badge]',
   template: '<ng-content />',

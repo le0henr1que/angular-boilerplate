@@ -1,0 +1,88 @@
+<section class="page narrow">
+  <a ui-button variant="ghost" size="sm" routerLink="/produtos" class="back">
+    <ui-icon name="arrow-left" />
+    Voltar para produtos
+  </a>
+
+  @if (notFound()) {
+    <div ui-empty class="empty">
+      <div ui-empty-header>
+        <div ui-empty-media variant="icon">
+          <ui-icon name="file-search" />
+        </div>
+        <h1 ui-empty-title>Produto não encontrado</h1>
+        <p ui-empty-description>Não existe produto com o código {{ code() }}.</p>
+      </div>
+    </div>
+  } @else if (product.isError()) {
+    <div ui-alert variant="destructive">
+      <ui-icon name="circle-alert" />
+      <h1 ui-alert-title>Não foi possível carregar o produto</h1>
+      <div ui-alert-description>
+        <p>Verifique sua conexão e tente de novo.</p>
+        <button
+          ui-button
+          variant="outline"
+          size="sm"
+          type="button"
+          class="retry"
+          (click)="product.refetch()"
+        >
+          Tentar de novo
+        </button>
+      </div>
+    </div>
+  } @else if (product.data(); as data) {
+    <article ui-card>
+      <div ui-card-header>
+        <h1 ui-card-title class="code">{{ data.code }}</h1>
+        <p ui-card-description>{{ data.category }} · {{ data.name }}</p>
+        <div ui-card-action>
+          <app-product-status-badge [status]="data.status" />
+        </div>
+      </div>
+      <div ui-card-content>
+        <dl class="details">
+          <div>
+            <dt>Nome</dt>
+            <dd>{{ data.name }}</dd>
+          </div>
+          <div>
+            <dt>Categoria</dt>
+            <dd>{{ data.category }}</dd>
+          </div>
+          <div>
+            <dt>Fabricação</dt>
+            <dd>{{ data.manufacturedAt | date: 'dd/MM/yyyy' : 'UTC' }}</dd>
+          </div>
+          <div>
+            <dt>Validade</dt>
+            <dd>{{ data.expiresAt | date: 'dd/MM/yyyy' : 'UTC' }}</dd>
+          </div>
+          <div>
+            <dt>Preço</dt>
+            <dd class="amount">{{ data.price | currency: 'BRL' }}</dd>
+          </div>
+          <div>
+            <dt>Fornecedor</dt>
+            <dd>{{ data.supplier }}</dd>
+          </div>
+          <div>
+            <dt>Loja</dt>
+            <dd>{{ data.store }}</dd>
+          </div>
+        </dl>
+      </div>
+    </article>
+  } @else {
+    <div class="loading" aria-busy="true" aria-label="Carregando produto">
+      <ui-skeleton class="loading-title" />
+      <ui-skeleton class="loading-subtitle" />
+      <div class="details">
+        @for (field of [1, 2, 3, 4, 5, 6, 7]; track field) {
+          <ui-skeleton class="loading-field" />
+        }
+      </div>
+    </div>
+  }
+</section>

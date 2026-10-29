@@ -1,6 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, ViewEncapsulation } from '@angular/core';
-
-export type AlertVariant = 'default' | 'destructive';
+import { type AlertVariant } from './ui-alert.types';
 
 /*
  *   <div ui-alert variant="destructive">
@@ -9,9 +8,9 @@ export type AlertVariant = 'default' | 'destructive';
  *     <p ui-alert-description>Tente de novo.</p>
  *   </div>
  *
- * O alerta posiciona o ícone que vem de fora (conteúdo projetado). O estilo normal de um
- * componente não alcança conteúdo projetado, por isso aqui o encapsulamento é desligado e
- * TODA regra começa com [ui-alert], para não vazar para o resto da página.
+ * The alert positions the icon that comes from outside (projected content). A component's
+ * regular styles don't reach projected content, so encapsulation is turned off here and EVERY
+ * rule starts with [ui-alert], so nothing leaks into the rest of the page.
  */
 @Component({
   selector: '[ui-alert]',

@@ -1,17 +1,12 @@
 import { computed } from '@angular/core';
 import { type Params } from '@angular/router';
-import { numberFilter } from '../models/filters';
-import { FIRST_PAGE, type Pagination } from '../models/list-table.models';
-import { fieldToParam, readField, type UrlField } from '../models/url-field';
+import { FIRST_PAGE } from '../models/list-table.constants';
+import { type Pagination } from '../models/list-table.types';
+import { type UrlField } from '../models/url-field.types';
+import { numberFilter } from '../utils/filter.utils';
+import { fieldToParam, readField } from '../utils/url-field.utils';
+import { type PaginationConfig } from './hooks.types';
 import { type UrlParams } from './inject-url-params';
-
-export interface PaginationConfig {
-  pageParam: string;
-  pageSizeParam: string;
-  enabled: () => boolean;
-  /** The first one is the default. */
-  pageSizeOptions: () => readonly number[];
-}
 
 /** Page in the URL: an integer from the first page on; anything else becomes the first page. */
 function pageField(param: string): UrlField<number> {

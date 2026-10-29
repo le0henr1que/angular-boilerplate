@@ -8,7 +8,7 @@ import { UiEmptyImports } from '@supermercado/ui/empty';
   imports: [RouterLink, UiButton, UiEmptyImports],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="pagina estreita">
+    <section class="page narrow">
       <div ui-empty>
         <div ui-empty-header>
           <h1 ui-empty-title>Página não encontrada</h1>
@@ -21,7 +21,7 @@ import { UiEmptyImports } from '@supermercado/ui/empty';
     </section>
   `,
   styles: `
-    .pagina {
+    .page {
       padding-top: 4rem;
     }
   `,

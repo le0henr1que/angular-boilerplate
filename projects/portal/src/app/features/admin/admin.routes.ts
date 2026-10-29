@@ -1,6 +1,6 @@
 import { type Routes } from '@angular/router';
 
-/** Ponto de entrada da área admin. Protegida no app.routes.ts (flag areaAdmin + papel admin). */
+/** Entry point of the admin area. Protected in app.routes.ts (adminArea flag + admin role). */
 export default [
   {
     path: '',

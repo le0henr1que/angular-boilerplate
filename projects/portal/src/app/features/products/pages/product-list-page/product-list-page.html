@@ -1,0 +1,131 @@
+<section class="page">
+  <header class="page-title">
+    <h1>Produtos</h1>
+    <p>Pesquise por código, nome ou categoria.</p>
+  </header>
+
+  <!-- Native form, without @angular/forms (~50 kB less on this screen). onSearch() cancels the
+       default submit: otherwise the browser would reload the page. -->
+  <form role="search" class="filters" (submit)="onSearch($event)">
+    <div class="field search-field">
+      <label ui-label for="search">Pesquisar</label>
+      <div ui-input-group>
+        <span ui-input-group-addon>
+          <ui-icon name="search" />
+        </span>
+        <!-- [value] keeps the field in sync with the URL (e.g. the browser's "back" or "Limpar"). -->
+        <input
+          ui-input-group-input
+          id="search"
+          [name]="termField"
+          type="search"
+          placeholder="Ex.: HO-1001, banana, Bebidas"
+          autocomplete="off"
+          [value]="filters.filters().term"
+        />
+      </div>
+    </div>
+
+    <div class="field status-field">
+      <label ui-label for="status">Status</label>
+      <select ui-select id="status" (change)="onStatusChange($event)">
+        <option [value]="allStatuses" [selected]="filters.filters().status === allStatuses">
+          Todos
+        </option>
+        @for (option of statusOptions; track option) {
+          <option [value]="option" [selected]="filters.filters().status === option">
+            {{ statusLabel[option] }}
+          </option>
+        }
+      </select>
+    </div>
+
+    <div class="buttons">
+      <button ui-button type="submit">
+        <ui-icon name="search" />
+        Pesquisar
+      </button>
+      @if (filters.hasFilter()) {
+        <button ui-button variant="ghost" type="button" (click)="filters.clear()">Limpar</button>
+      }
+    </div>
+  </form>
+
+  @if (products.isError()) {
+    <div ui-alert variant="destructive">
+      <ui-icon name="circle-alert" />
+      <h2 ui-alert-title>Não foi possível carregar os produtos</h2>
+      <div ui-alert-description>
+        <p>Verifique sua conexão e tente de novo.</p>
+        <button
+          ui-button
+          variant="outline"
+          size="sm"
+          type="button"
+          class="retry"
+          (click)="products.refetch()"
+        >
+          Tentar de novo
+        </button>
+      </div>
+    </div>
+  } @else if (products.isPending()) {
+    <!-- First load of this search: there is nothing in the cache to show yet. -->
+    <div class="loading" aria-busy="true" aria-label="Carregando produtos">
+      @for (row of loadingRows; track row) {
+        <ui-skeleton class="loading-row" />
+      }
+    </div>
+  } @else if (products.data()?.length === 0) {
+    <div ui-empty class="empty">
+      <div ui-empty-header>
+        <div ui-empty-media variant="icon">
+          <ui-icon name="search-x" />
+        </div>
+        <div ui-empty-title>Nenhum produto encontrado</div>
+        <div ui-empty-description>Tente outro termo ou remova os filtros.</div>
+      </div>
+      <div ui-empty-content>
+        <button ui-button variant="outline" type="button" (click)="filters.clear()">
+          Limpar filtros
+        </button>
+      </div>
+    </div>
+  } @else {
+    <div class="count" aria-live="polite">
+      {{ products.data()?.length }} produto(s)
+      <!-- isFetching: fetching in the background, with data (old or cached) already on screen. -->
+      @if (products.isFetching()) {
+        <ui-spinner aria-label="Atualizando" />
+        <span>Atualizando…</span>
+      }
+    </div>
+
+    <!-- The columns live in the .ts (columns); here only the cells that aren't plain text.
+         isPlaceholderData: the table is still the previous search's (keepPreviousData). -->
+    <ui-data-table
+      [data]="products.data() ?? []"
+      [columns]="columns"
+      [trackBy]="column.code"
+      [class.stale]="products.isPlaceholderData()"
+    >
+      <!-- On hover (or keyboard focus), already fetches the detail into the cache. -->
+      <ng-template [uiCell]="column.code" let-code>
+        <a
+          class="code-link"
+          [routerLink]="['/produtos', code]"
+          (mouseenter)="prefetch(code)"
+          (focus)="prefetch(code)"
+        >
+          {{ code }}
+        </a>
+      </ng-template>
+      <ng-template [uiCell]="column.price" let-price>
+        <span class="amount">{{ price | currency: 'BRL' }}</span>
+      </ng-template>
+      <ng-template [uiCell]="column.status" let-status>
+        <app-product-status-badge [status]="status" />
+      </ng-template>
+    </ui-data-table>
+  }
+</section>

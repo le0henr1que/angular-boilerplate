@@ -1,71 +1,81 @@
 import { UiBadge } from '@supermercado/ui/badge';
 import { UiButton } from '@supermercado/ui/button';
-import { type UiColuna, UiDataTable, UiDataTableImports } from '@supermercado/ui/data-table';
+import { type UiColumn, UiDataTable, UiDataTableImports } from '@supermercado/ui/data-table';
 import { type Meta, type StoryObj, moduleMetadata } from '@storybook/angular';
 
-interface Pedido {
+interface Order {
   id: number;
   user: { name: string; email: string };
   total: number;
   status: 'pago' | 'pendente' | 'cancelado';
 }
 
-const PEDIDOS: Pedido[] = [
+const ORDERS: Order[] = [
   { id: 101, user: { name: 'Ana Souza', email: 'ana@exemplo.com' }, total: 152.9, status: 'pago' },
-  { id: 102, user: { name: 'Bruno Lima', email: 'bruno@exemplo.com' }, total: 48, status: 'pendente' },
-  { id: 103, user: { name: 'Carla Dias', email: 'carla@exemplo.com' }, total: 310.4, status: 'cancelado' },
+  {
+    id: 102,
+    user: { name: 'Bruno Lima', email: 'bruno@exemplo.com' },
+    total: 48,
+    status: 'pendente',
+  },
+  {
+    id: 103,
+    user: { name: 'Carla Dias', email: 'carla@exemplo.com' },
+    total: 310.4,
+    status: 'cancelado',
+  },
 ];
 
-const moeda = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
-const COLUNAS: UiColuna<Pedido>[] = [
-  { chave: 'id', titulo: '#', largura: '4rem' },
-  { chave: 'user.name', titulo: 'Cliente' },
-  { chave: 'user.email', titulo: 'E-mail' },
-  { chave: 'total', titulo: 'Total', formatar: (v) => moeda.format(v), alinhar: 'direita' },
-  { chave: 'status', titulo: 'Status' },
-  { id: 'acoes', titulo: '', alinhar: 'direita' },
+const COLUMNS: UiColumn<Order>[] = [
+  { key: 'id', title: '#', width: '4rem' },
+  { key: 'user.name', title: 'Cliente' },
+  { key: 'user.email', title: 'E-mail' },
+  { key: 'total', title: 'Total', format: (v) => currency.format(v), align: 'end' },
+  { key: 'status', title: 'Status' },
+  { id: 'actions', title: '', align: 'end' },
 ];
 
-const VARIANTE_STATUS = { pago: 'default', pendente: 'secondary', cancelado: 'destructive' };
+const STATUS_VARIANT = { pago: 'default', pendente: 'secondary', cancelado: 'destructive' };
 
-const meta: Meta<UiDataTable<Pedido>> = {
-  title: 'Componentes/Data Table',
+const meta: Meta<UiDataTable<Order>> = {
+  title: 'Components/Data Table',
   component: UiDataTable,
   decorators: [moduleMetadata({ imports: [UiDataTableImports, UiBadge, UiButton] })],
 };
 
 export default meta;
-type Story = StoryObj<UiDataTable<Pedido>>;
+type Story = StoryObj<UiDataTable<Order>>;
 
 const TEMPLATE = `
-  <ui-data-table [dados]="dados" [colunas]="colunas" [carregando]="carregando">
-    <ng-template uiCelula="status" let-valor>
-      <span ui-badge [variant]="variantes[valor]">{{ valor }}</span>
+  <ui-data-table [data]="data" [columns]="columns" [loading]="loading">
+    <ng-template uiCell="status" let-value>
+      <span ui-badge [variant]="variants[value]">{{ value }}</span>
     </ng-template>
-    <ng-template uiCelula="acoes" let-linha="linha">
-      <button ui-button variant="outline" size="sm" type="button">Ver {{ linha.id }}</button>
+    <ng-template uiCell="actions" let-row="row">
+      <button ui-button variant="outline" size="sm" type="button">Ver {{ row.id }}</button>
     </ng-template>
   </ui-data-table>
 `;
 
 export const Default: Story = {
   render: () => ({
-    props: { dados: PEDIDOS, colunas: COLUNAS, carregando: false, variantes: VARIANTE_STATUS },
+    props: { data: ORDERS, columns: COLUMNS, loading: false, variants: STATUS_VARIANT },
     template: TEMPLATE,
   }),
 };
 
-export const Carregando: Story = {
+export const Loading: Story = {
   render: () => ({
-    props: { dados: [], colunas: COLUNAS, carregando: true, variantes: VARIANTE_STATUS },
+    props: { data: [], columns: COLUMNS, loading: true, variants: STATUS_VARIANT },
     template: TEMPLATE,
   }),
 };
 
-export const Vazia: Story = {
+export const Empty: Story = {
   render: () => ({
-    props: { dados: [], colunas: COLUNAS, carregando: false, variantes: VARIANTE_STATUS },
+    props: { data: [], columns: COLUMNS, loading: false, variants: STATUS_VARIANT },
     template: TEMPLATE,
   }),
 };

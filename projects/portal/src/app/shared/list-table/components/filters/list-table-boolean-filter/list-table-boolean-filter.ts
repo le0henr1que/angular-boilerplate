@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
 import { injectListTableFilter } from '../../../hooks/inject-list-table-filter';
-import { type UrlField } from '../../../models/url-field';
+import { type UrlField } from '../../../models/url-field.types';
 
 /**
  * On/off filter (checkbox), ready to use inside <app-list-table>:

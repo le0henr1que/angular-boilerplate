@@ -10,7 +10,7 @@ import {
   type ListTableRequest,
   type ListTableResult,
   type ListTableSource,
-} from '../models/list-table.models';
+} from '../models/list-table.types';
 
 /** AbortSignal event fired when TanStack cancels the query. */
 const ABORT_EVENT = 'abort';

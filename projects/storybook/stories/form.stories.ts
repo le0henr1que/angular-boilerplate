@@ -4,9 +4,9 @@ import { UiLabel } from '@supermercado/ui/label';
 import { UiSelect } from '@supermercado/ui/select';
 import { type Meta, type StoryObj, moduleMetadata } from '@storybook/angular';
 
-/** Campos de formulário: label, input, input group e select. Todos são elementos nativos. */
+/** Form fields: label, input, input group and select. All of them are native elements. */
 const meta: Meta<UiInput> = {
-  title: 'Componentes/Formulário',
+  title: 'Components/Form',
   component: UiInput,
   decorators: [moduleMetadata({ imports: [UiInputImports, UiLabel, UiSelect, UiIcon] })],
 };
@@ -18,14 +18,14 @@ export const Input: Story = {
   render: () => ({
     template: `
       <div class="sb-coluna">
-        <label ui-label for="nome">Nome</label>
-        <input ui-input id="nome" placeholder="Banana prata (kg)" />
+        <label ui-label for="name">Nome</label>
+        <input ui-input id="name" placeholder="Banana prata (kg)" />
       </div>
     `,
   }),
 };
 
-export const InputInvalido: Story = {
+export const InvalidInput: Story = {
   render: () => ({
     template: `
       <div class="sb-coluna">
@@ -40,10 +40,10 @@ export const InputGroup: Story = {
   render: () => ({
     template: `
       <div class="sb-coluna">
-        <label ui-label for="busca">Pesquisar</label>
+        <label ui-label for="search">Pesquisar</label>
         <div ui-input-group>
           <span ui-input-group-addon><ui-icon name="search" /></span>
-          <input ui-input-group-input id="busca" type="search" placeholder="Ex.: HO-1001" />
+          <input ui-input-group-input id="search" type="search" placeholder="Ex.: HO-1001" />
         </div>
       </div>
     `,
@@ -56,17 +56,17 @@ export const Select: Story = {
       <div class="sb-coluna">
         <label ui-label for="status">Status</label>
         <select ui-select id="status">
-          <option value="todos">Todos</option>
-          <option value="disponivel">Disponível</option>
-          <option value="baixo">Estoque baixo</option>
-          <option value="esgotado">Esgotado</option>
+          <option value="all">Todos</option>
+          <option value="available">Disponível</option>
+          <option value="low">Estoque baixo</option>
+          <option value="out-of-stock">Esgotado</option>
         </select>
       </div>
     `,
   }),
 };
 
-export const Desabilitados: Story = {
+export const Disabled: Story = {
   render: () => ({
     template: `
       <div class="sb-coluna">

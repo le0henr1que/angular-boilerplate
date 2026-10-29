@@ -1,9 +1,9 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /**
- * Bloco cinza pulsando, no lugar de um conteúdo que ainda está carregando.
- * Por padrão ocupa a largura toda com 1rem de altura; ajuste com o CSS de quem usa:
- *   <ui-skeleton class="titulo" />   →   .titulo { height: 2rem; width: 12rem; }
+ * Pulsing grey block, in place of content that is still loading.
+ * By default it takes the full width and 1rem height; adjust with the consumer's CSS:
+ *   <ui-skeleton class="title" />   →   .title { height: 2rem; width: 12rem; }
  */
 @Component({
   selector: 'ui-skeleton',
@@ -15,9 +15,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
       height: 1rem;
       border-radius: var(--radius-md);
       background: var(--muted);
-      animation: pulsar 2s ease-in-out infinite;
+      animation: pulse 2s ease-in-out infinite;
     }
-    @keyframes pulsar {
+    @keyframes pulse {
       50% {
         opacity: 0.5;
       }

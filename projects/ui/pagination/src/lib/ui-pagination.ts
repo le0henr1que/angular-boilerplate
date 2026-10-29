@@ -1,65 +1,47 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { UiButton } from '@supermercado/ui/button';
 import { UiIcon } from '@supermercado/ui/icon';
-
-/** Um número de página ou as reticências entre dois blocos. */
-export type ItemPaginacao = number | 'reticencias';
-
-/**
- * Páginas a mostrar: sempre a primeira, a última e `vizinhas` de cada lado da atual.
- *   paginasVisiveis(6, 20) → [1, '…', 5, 6, 7, '…', 20]
- */
-export function paginasVisiveis(atual: number, total: number, vizinhas = 1): ItemPaginacao[] {
-  const itens: ItemPaginacao[] = [];
-  for (let pagina = 1; pagina <= total; pagina++) {
-    const perto = Math.abs(pagina - atual) <= vizinhas;
-    if (pagina === 1 || pagina === total || perto) {
-      itens.push(pagina);
-    } else if (itens.at(-1) !== 'reticencias') {
-      itens.push('reticencias');
-    }
-  }
-  return itens;
-}
+import { ELLIPSIS } from './ui-pagination.constants';
+import { visiblePages } from './ui-pagination.utils';
 
 /**
- * Navegação entre páginas. Não guarda estado: recebe a página atual e avisa a escolhida.
+ * Navigation between pages. Keeps no state: receives the current page and reports the chosen one.
  *
- *   <ui-pagination [pagina]="pagina()" [totalPaginas]="total()" (mudarPagina)="ir($event)" />
+ *   <ui-pagination [page]="page()" [totalPages]="total()" (pageChange)="goTo($event)" />
  */
 @Component({
   selector: 'ui-pagination',
   imports: [UiButton, UiIcon],
   template: `
-    <nav [attr.aria-label]="rotulo()">
-      <ul class="lista">
+    <nav [attr.aria-label]="label()">
+      <ul class="list">
         <li>
           <button
             ui-button
             variant="ghost"
             size="sm"
             type="button"
-            [disabled]="pagina() <= 1"
-            (click)="mudarPagina.emit(pagina() - 1)"
+            [disabled]="page() <= 1"
+            (click)="pageChange.emit(page() - 1)"
           >
             <ui-icon name="chevron-left" />
             Anterior
           </button>
         </li>
-        @for (item of itens(); track $index) {
+        @for (item of items(); track $index) {
           <li>
-            @if (item === 'reticencias') {
-              <span class="reticencias" aria-hidden="true">…</span>
+            @if (item === ellipsis) {
+              <span class="ellipsis" aria-hidden="true">…</span>
             } @else {
               <button
                 ui-button
                 size="sm"
                 type="button"
-                class="numero"
-                [variant]="item === pagina() ? 'outline' : 'ghost'"
-                [attr.aria-current]="item === pagina() ? 'page' : null"
+                class="number"
+                [variant]="item === page() ? 'outline' : 'ghost'"
+                [attr.aria-current]="item === page() ? 'page' : null"
                 [attr.aria-label]="'Página ' + item"
-                (click)="item !== pagina() && mudarPagina.emit(item)"
+                (click)="item !== page() && pageChange.emit(item)"
               >
                 {{ item }}
               </button>
@@ -72,8 +54,8 @@ export function paginasVisiveis(atual: number, total: number, vizinhas = 1): Ite
             variant="ghost"
             size="sm"
             type="button"
-            [disabled]="pagina() >= totalPaginas()"
-            (click)="mudarPagina.emit(pagina() + 1)"
+            [disabled]="page() >= totalPages()"
+            (click)="pageChange.emit(page() + 1)"
           >
             Próxima
             <ui-icon name="chevron-right" />
@@ -86,7 +68,7 @@ export function paginasVisiveis(atual: number, total: number, vizinhas = 1): Ite
     :host {
       display: block;
     }
-    .lista {
+    .list {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
@@ -95,11 +77,11 @@ export function paginasVisiveis(atual: number, total: number, vizinhas = 1): Ite
       padding: 0;
       list-style: none;
     }
-    .numero {
+    .number {
       min-width: 2.25rem;
       font-variant-numeric: tabular-nums;
     }
-    .reticencias {
+    .ellipsis {
       display: inline-flex;
       justify-content: center;
       width: 2.25rem;
@@ -109,14 +91,15 @@ export function paginasVisiveis(atual: number, total: number, vizinhas = 1): Ite
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UiPagination {
-  readonly pagina = input.required<number>();
-  readonly totalPaginas = input.required<number>();
-  /** Quantas páginas mostrar de cada lado da atual. */
-  readonly vizinhas = input(1);
-  readonly rotulo = input('Paginação');
-  readonly mudarPagina = output<number>();
+  readonly page = input.required<number>();
+  readonly totalPages = input.required<number>();
+  /** How many pages to show on each side of the current one. */
+  readonly siblings = input(1);
+  readonly label = input('Paginação');
+  readonly pageChange = output<number>();
 
-  protected readonly itens = computed(() =>
-    paginasVisiveis(this.pagina(), this.totalPaginas(), this.vizinhas()),
+  protected readonly ellipsis = ELLIPSIS;
+  protected readonly items = computed(() =>
+    visiblePages(this.page(), this.totalPages(), this.siblings()),
   );
 }

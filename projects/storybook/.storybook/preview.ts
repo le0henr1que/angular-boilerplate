@@ -2,18 +2,18 @@ import { withThemeByClassName } from '@storybook/addon-themes';
 import type { Preview } from '@storybook/angular';
 
 const preview: Preview = {
-  // Botão na barra do Storybook que alterna a classe "dark" no <html>.
+  // Button in the Storybook toolbar that toggles the "dark" class on <html>.
   decorators: [
     withThemeByClassName({
-      themes: { claro: '', escuro: 'dark' },
-      defaultTheme: 'claro',
+      themes: { light: '', dark: 'dark' },
+      defaultTheme: 'light',
       parentSelector: 'html',
     }),
   ],
   parameters: {
     options: { storySort: { method: 'alphabetical' } },
   },
-  // Gera a página "Docs" de cada componente automaticamente.
+  // Generates each component's "Docs" page automatically.
   tags: ['autodocs'],
 };
 

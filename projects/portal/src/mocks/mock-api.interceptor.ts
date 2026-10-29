@@ -5,149 +5,186 @@ import {
   HttpResponse,
 } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { APP_CONFIG } from '@core/config/app-config';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
+import { AUTH_MODE } from '@core/config/app-config.enums';
 import { Logger } from '@core/logging/logger';
 import {
-  CATALOGO_ENDPOINT,
-  estaComEstoqueBaixo,
-  type ItemCatalogo,
-  type PaginaCatalogo,
-  PARAM_LIGADO,
-  PARAMS_CATALOGO,
-  POR_PAGINA_PADRAO,
-  PRIMEIRA_PAGINA,
-} from '@features/catalogo';
-import { STATUS_PRODUTO, type StatusProduto } from '@features/produtos';
-import { SORT_DIRECTION } from '@shared/list-table';
-import { lerCaminho } from '@supermercado/ui/data-table';
+  CATALOG_ENDPOINT,
+  CATALOG_PARAMS,
+  type CatalogResponse,
+  DEFAULT_PAGE_SIZE,
+  isLowStock,
+} from '@features/catalog';
+import {
+  ALL_PARTNER_TYPES,
+  DEFAULT_PAGE_SIZE as ECOSYSTEM_DEFAULT_PAGE_SIZE,
+  ECOSYSTEM_ENDPOINT,
+  ECOSYSTEM_PARAMS,
+  type EcosystemResponse,
+  toPartnerTypeFilter,
+} from '@features/ecosystem';
+import {
+  PRODUCT_PARAMS,
+  PRODUCTS_ENDPOINT,
+  toStatusFilter,
+  ALL_STATUSES,
+} from '@features/products';
+import { FIRST_PAGE, SORT_DIRECTION, TRUE_PARAM } from '@shared/list-table';
+import { readPath } from '@supermercado/ui/data-table';
 import { delay, of, throwError } from 'rxjs';
-import { CATALOGO_DB } from './catalogo.db';
-import { PRODUTOS_DB } from './produtos.db';
-import { lerSessaoMock } from './sessao-mock';
+import { CATALOG_DB } from './catalog.db';
+import { type PagedResponse, type PagingParams } from './mock-api.types';
+import { ECOSYSTEM_DB } from './ecosystem.db';
+import { readMockSession } from './mock-session';
+import { PRODUCTS_DB } from './products.db';
 
-/** Latência simulada, para os estados de carregamento e o efeito do cache ficarem visíveis. */
-const LATENCIA_MS = 800;
+/** Simulated latency, so the loading states and the cache effect are visible. */
+const LATENCY_MS = 800;
 
-/** Teto de itens por página que a API aceita (o front só usa OPCOES_POR_PAGINA). */
-const POR_PAGINA_MAXIMO = 100;
+/** Maximum page size the API accepts (the front end only uses PAGE_SIZE_OPTIONS). */
+const MAX_PAGE_SIZE = 100;
 
-/** Remove acentos e caixa: "Maçã" e "maca" encontram o mesmo produto. */
-const normalizar = (texto: string) =>
-  texto
+/** Removes accents and case: "Maçã" and "maca" find the same product. */
+const normalize = (text: string) =>
+  text
     .normalize('NFD')
     .replace(/\p{Diacritic}/gu, '')
     .toLowerCase();
 
-const limitar = (valor: number, minimo: number, maximo: number) =>
-  Math.min(Math.max(Math.trunc(valor), minimo), maximo);
+const clamp = (value: number, min: number, max: number) =>
+  Math.min(Math.max(Math.trunc(value), min), max);
 
-const responder = <T>(body: T) =>
-  of(new HttpResponse({ status: 200, body })).pipe(delay(LATENCIA_MS));
-const naoEncontrado = (url: string) =>
+const respond = <T>(body: T) => of(new HttpResponse({ status: 200, body })).pipe(delay(LATENCY_MS));
+const notFound = (url: string) =>
   throwError(() => new HttpErrorResponse({ status: 404, statusText: 'Not Found', url })).pipe(
-    delay(LATENCIA_MS),
+    delay(LATENCY_MS),
   );
 
-/** Número de um parâmetro; ausente, zero ou não numérico vira o padrão. */
-function numeroOuPadrao(valor: string | null, padrao: number): number {
-  const numero = Number(valor);
-  if (Number.isNaN(numero) || numero === 0) return padrao;
-  return numero;
+/** Number from a parameter; missing, zero or non-numeric becomes the default. */
+function numberOrDefault(value: string | null, fallback: number): number {
+  const number = Number(value);
+  if (Number.isNaN(number) || number === 0) return fallback;
+  return number;
 }
 
-/** Multiplicador da comparação: crescente mantém, decrescente inverte. */
-const CRESCENTE = 1;
-const SINAL_DA_DIRECAO = new Map<string | null, number>([
-  [SORT_DIRECTION.asc, CRESCENTE],
-  [SORT_DIRECTION.desc, -CRESCENTE],
+/** Comparison multiplier: ascending keeps it, descending inverts it. */
+const ASCENDING = 1;
+const DIRECTION_SIGN = new Map<string | null, number>([
+  [SORT_DIRECTION.asc, ASCENDING],
+  [SORT_DIRECTION.desc, -ASCENDING],
 ]);
 
-/** Ordena por um caminho do item ("estoque.quantidade"); sem caminho, mantém a ordem do banco. */
-function ordenarCatalogo(itens: ItemCatalogo[], params: HttpParams): ItemCatalogo[] {
-  const caminho = params.get(PARAMS_CATALOGO.ordenarPor);
-  if (!caminho) return itens;
-  const sinal = SINAL_DA_DIRECAO.get(params.get(PARAMS_CATALOGO.direcao)) ?? CRESCENTE;
-  return [...itens].sort((a, b) => {
-    const valorA = lerCaminho(a, caminho);
-    const valorB = lerCaminho(b, caminho);
-    if (typeof valorA === 'number' && typeof valorB === 'number') return (valorA - valorB) * sinal;
-    return String(valorA).localeCompare(String(valorB), 'pt-BR') * sinal;
+/** Sorts by an item path ("stock.quantity"); without a path, keeps the database order. */
+function sortByPath<T>(items: T[], params: HttpParams, names: PagingParams): T[] {
+  const path = params.get(names.sortBy);
+  if (!path) return items;
+  const sign = DIRECTION_SIGN.get(params.get(names.sortDirection)) ?? ASCENDING;
+  return [...items].sort((a, b) => {
+    const valueA = readPath(a, path);
+    const valueB = readPath(b, path);
+    if (typeof valueA === 'number' && typeof valueB === 'number') return (valueA - valueB) * sign;
+    return String(valueA).localeCompare(String(valueB), 'pt-BR') * sign;
   });
 }
 
-/** GET /catalogo: filtra, ordena e pagina NO SERVIDOR, como a API real; o front só recebe a página pedida. */
-function listarCatalogo(params: HttpParams): PaginaCatalogo {
-  const termo = normalizar(params.get(PARAMS_CATALOGO.termo) ?? '');
-  const categoria = params.get(PARAMS_CATALOGO.categoria);
-  const estoqueBaixo = params.get(PARAMS_CATALOGO.estoqueBaixo) === PARAM_LIGADO;
-  const filtrados = CATALOGO_DB.filter(
-    (item) =>
-      (!termo || normalizar(`${item.nome} ${item.fornecedor.nome}`).includes(termo)) &&
-      (!categoria || item.categoria.nome === categoria) &&
-      (!estoqueBaixo || estaComEstoqueBaixo(item)),
+/** Sorts and paginates ON THE SERVER, like the real API; the front end only gets the requested page. */
+function toPage<T>(
+  filtered: T[],
+  params: HttpParams,
+  names: PagingParams,
+  defaultPageSize: number,
+): PagedResponse<T> {
+  const pageSize = clamp(
+    numberOrDefault(params.get(names.pageSize), defaultPageSize),
+    FIRST_PAGE,
+    MAX_PAGE_SIZE,
   );
-  const porPagina = limitar(
-    numeroOuPadrao(params.get(PARAMS_CATALOGO.porPagina), POR_PAGINA_PADRAO),
-    PRIMEIRA_PAGINA,
-    POR_PAGINA_MAXIMO,
-  );
-  const totalPaginas = Math.max(PRIMEIRA_PAGINA, Math.ceil(filtrados.length / porPagina));
-  const pagina = limitar(
-    numeroOuPadrao(params.get(PARAMS_CATALOGO.pagina), PRIMEIRA_PAGINA),
-    PRIMEIRA_PAGINA,
-    totalPaginas,
-  );
-  const inicio = (pagina - PRIMEIRA_PAGINA) * porPagina;
+  const totalPages = Math.max(FIRST_PAGE, Math.ceil(filtered.length / pageSize));
+  const page = clamp(numberOrDefault(params.get(names.page), FIRST_PAGE), FIRST_PAGE, totalPages);
+  const start = (page - FIRST_PAGE) * pageSize;
   return {
-    itens: ordenarCatalogo(filtrados, params).slice(inicio, inicio + porPagina),
-    total: filtrados.length,
-    pagina,
-    porPagina,
-    totalPaginas,
+    items: sortByPath(filtered, params, names).slice(start, start + pageSize),
+    total: filtered.length,
+    page,
+    pageSize,
+    totalPages,
   };
 }
 
+/** GET /catalogo: filters by term, category and low stock. */
+function listCatalog(params: HttpParams): CatalogResponse {
+  const term = normalize(params.get(CATALOG_PARAMS.term) ?? '');
+  const category = params.get(CATALOG_PARAMS.category);
+  const lowStock = params.get(CATALOG_PARAMS.lowStock) === TRUE_PARAM;
+  const filtered = CATALOG_DB.filter(
+    (item) =>
+      (!term || normalize(`${item.name} ${item.supplier.name}`).includes(term)) &&
+      (!category || item.category.name === category) &&
+      (!lowStock || isLowStock(item)),
+  );
+  return toPage(filtered, params, CATALOG_PARAMS, DEFAULT_PAGE_SIZE);
+}
+
+/** GET /ecossistema: filters by term (partner, contact or city), type and active partners only. */
+function listEcosystem(params: HttpParams): EcosystemResponse {
+  const term = normalize(params.get(ECOSYSTEM_PARAMS.term) ?? '');
+  const type = toPartnerTypeFilter(params.get(ECOSYSTEM_PARAMS.type));
+  const activeOnly = params.get(ECOSYSTEM_PARAMS.activeOnly) === TRUE_PARAM;
+  const filtered = ECOSYSTEM_DB.filter(
+    (partner) =>
+      (!term ||
+        normalize(`${partner.name} ${partner.contact.name} ${partner.location.city}`).includes(
+          term,
+        )) &&
+      (type === ALL_PARTNER_TYPES || partner.type === type) &&
+      (!activeOnly || partner.active),
+  );
+  return toPage(filtered, params, ECOSYSTEM_PARAMS, ECOSYSTEM_DEFAULT_PAGE_SIZE);
+}
+
 /**
- * API simulada para desenvolver sem backend. Só é registrada quando `mockApi: true`
- * no environment (ver app.config.ts). Responde como a API REST real responderia:
+ * Mock API to develop without a backend. Only registered when `mockApi: true`
+ * in the environment (see app.config.ts). Answers as the real REST API would:
  *
- *   GET {apiUrl}/produtos?q=texto&status=disponivel
- *   GET {apiUrl}/produtos/:codigo
- *   GET {apiUrl}/catalogo?q=texto&categoria=Bebidas&estoqueBaixo=true&pagina=2&porPagina=10&ordenarPor=preco&direcao=desc
+ *   GET {apiUrl}/produtos?q=text&status=available
+ *   GET {apiUrl}/produtos/:code
+ *   GET {apiUrl}/catalogo?q=text&categoria=Bebidas&estoqueBaixo=true&pagina=2&porPagina=10&ordenarPor=price&direcao=desc
+ *   GET {apiUrl}/ecossistema?q=text&tipo=logistics&ativos=true&pagina=1&porPagina=10&ordenarPor=name&direcao=asc
  */
 export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   const { apiUrl, auth, features } = inject(APP_CONFIG);
   if (!req.url.startsWith(`${apiUrl}/`) || req.method !== 'GET') return next(req);
 
-  const rota = req.url.slice(apiUrl.length);
-  inject(Logger).com('mock-api').debug(`${req.method} ${req.urlWithParams}`);
+  const route = req.url.slice(apiUrl.length + 1);
+  inject(Logger).withContext('mock-api').debug(`${req.method} ${req.urlWithParams}`);
 
-  // Como a API real: sem cookie de sessão válido, 401 (o authInterceptor manda para o login).
-  if (features.autenticacao && auth.modo === 'mock' && !lerSessaoMock()) {
+  // Like the real API: without a valid session cookie, 401 (authInterceptor sends to the login).
+  if (features.authentication && auth.mode === AUTH_MODE.mock && !readMockSession()) {
     return throwError(
       () => new HttpErrorResponse({ status: 401, statusText: 'Unauthorized', url: req.url }),
-    ).pipe(delay(LATENCIA_MS));
+    ).pipe(delay(LATENCY_MS));
   }
 
-  if (rota === '/produtos') {
-    const termo = normalizar(req.params.get('q') ?? '');
-    const status = req.params.get('status');
-    return responder(
-      PRODUTOS_DB.filter(
+  if (route === PRODUCTS_ENDPOINT) {
+    const term = normalize(req.params.get(PRODUCT_PARAMS.term) ?? '');
+    const status = toStatusFilter(req.params.get(PRODUCT_PARAMS.status));
+    return respond(
+      PRODUCTS_DB.filter(
         (p) =>
-          (!termo || normalizar(`${p.codigo} ${p.nome} ${p.categoria}`).includes(termo)) &&
-          (!STATUS_PRODUTO.includes(status as StatusProduto) || p.status === status),
+          (!term || normalize(`${p.code} ${p.name} ${p.category}`).includes(term)) &&
+          (status === ALL_STATUSES || p.status === status),
       ),
     );
   }
 
-  if (rota === CATALOGO_ENDPOINT) return responder(listarCatalogo(req.params));
+  if (route === CATALOG_ENDPOINT) return respond(listCatalog(req.params));
+  if (route === ECOSYSTEM_ENDPOINT) return respond(listEcosystem(req.params));
 
-  const detalhe = rota.match(/^\/produtos\/([^/]+)$/);
-  if (detalhe) {
-    const produto = PRODUTOS_DB.find((p) => p.codigo === decodeURIComponent(detalhe[1]));
-    return produto ? responder(produto) : naoEncontrado(req.url);
+  const detail = route.match(new RegExp(`^${PRODUCTS_ENDPOINT}/([^/]+)$`));
+  if (detail) {
+    const product = PRODUCTS_DB.find((p) => p.code === decodeURIComponent(detail[1]));
+    return product ? respond(product) : notFound(req.url);
   }
 
-  return naoEncontrado(req.url);
+  return notFound(req.url);
 };

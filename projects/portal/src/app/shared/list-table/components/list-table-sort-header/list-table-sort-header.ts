@@ -1,12 +1,8 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { type IconName, UiIcon } from '@supermercado/ui/icon';
-import { type Sort, SORT_DIRECTION, type SortDirection } from '../../models/list-table.models';
-
-const UNSORTED_ICON: IconName = 'arrow-up-down';
-const ICON_BY_DIRECTION: Record<SortDirection, IconName> = {
-  [SORT_DIRECTION.asc]: 'arrow-up',
-  [SORT_DIRECTION.desc]: 'arrow-down',
-};
+import { type Sort } from '../../models/list-table.types';
+import { LIST_TABLE_ICON, SORT_ICON } from '../../models/list-table.constants';
+import { type SortDirection } from '../../models/list-table.enums';
 
 /** Clickable header of a sortable column. Presentational: it only reports the click. */
 @Component({
@@ -69,7 +65,7 @@ export class ListTableSortHeader {
 
   protected readonly icon = computed<IconName>(() => {
     const direction = this.direction();
-    if (!direction) return UNSORTED_ICON;
-    return ICON_BY_DIRECTION[direction];
+    if (!direction) return LIST_TABLE_ICON.unsorted;
+    return SORT_ICON[direction];
   });
 }

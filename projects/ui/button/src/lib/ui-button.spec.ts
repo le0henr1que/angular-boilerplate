@@ -2,14 +2,14 @@ import { render, screen } from '@testing-library/angular';
 import { UiButton } from './ui-button';
 
 describe('UiButton', () => {
-  it('usa as variantes padrão', async () => {
+  it('uses the default variants', async () => {
     await render(`<button ui-button>Salvar</button>`, { imports: [UiButton] });
-    const botao = screen.getByRole('button', { name: 'Salvar' });
-    expect(botao).toHaveAttribute('data-variant', 'default');
-    expect(botao).toHaveAttribute('data-size', 'default');
+    const button = screen.getByRole('button', { name: 'Salvar' });
+    expect(button).toHaveAttribute('data-variant', 'default');
+    expect(button).toHaveAttribute('data-size', 'default');
   });
 
-  it('reflete variant e size em atributos data-*', async () => {
+  it('reflects variant and size as data-* attributes', async () => {
     await render(`<a ui-button href="/x" variant="outline" size="sm">Ir</a>`, {
       imports: [UiButton],
     });

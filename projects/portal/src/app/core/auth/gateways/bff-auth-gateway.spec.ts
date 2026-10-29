@@ -2,22 +2,23 @@ import { DOCUMENT } from '@angular/common';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
-import { APP_CONFIG, type AppConfig } from '@core/config/app-config';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
+import { type AppConfig } from '@core/config/app-config.types';
 import { BffAuthGateway } from './bff-auth-gateway';
 
-describe('BffAuthGateway (backend real, ex.: Azure AD)', () => {
+describe('BffAuthGateway (real backend, e.g. Azure AD)', () => {
   const location = { assign: vi.fn() };
-  const configAuth = {
-    modo: 'bff' as const,
-    urls: { login: '/bff/login', logout: '/bff/logout', usuario: '/bff/user' },
-    headerCsrf: null,
+  const authConfig = {
+    mode: 'bff' as const,
+    urls: { login: '/bff/login', logout: '/bff/logout', user: '/bff/user' },
+    csrfHeader: null,
   };
 
   beforeEach(() => {
     TestBed.configureTestingModule({
       providers: [
-        // O gateway só lê auth.urls: basta entregar esse pedaço da config.
-        { provide: APP_CONFIG, useValue: { auth: configAuth } as AppConfig },
+        // The gateway only reads auth.urls: handing over that piece of the config is enough.
+        { provide: APP_CONFIG, useValue: { auth: authConfig } as AppConfig },
         provideHttpClient(),
         provideHttpClientTesting(),
         { provide: DOCUMENT, useValue: { location } },
@@ -27,28 +28,28 @@ describe('BffAuthGateway (backend real, ex.: Azure AD)', () => {
 
   afterEach(() => vi.clearAllMocks());
 
-  it('entrar redireciona a página para o login do backend com o returnUrl', () => {
-    void TestBed.inject(BffAuthGateway).entrar('/produtos?q=joão');
+  it('signIn redirects the page to the backend login with the returnUrl', () => {
+    void TestBed.inject(BffAuthGateway).signIn('/produtos?q=joão');
     expect(location.assign).toHaveBeenCalledWith(
       '/bff/login?returnUrl=%2Fprodutos%3Fq%3Djo%C3%A3o',
     );
   });
 
-  it('sair redireciona para o logout do backend', () => {
-    void TestBed.inject(BffAuthGateway).sair();
+  it('signOut redirects to the backend logout', () => {
+    void TestBed.inject(BffAuthGateway).signOut();
     expect(location.assign).toHaveBeenCalledWith('/bff/logout');
   });
 
-  it('buscarUsuario devolve o usuário (200) ou null (401)', async () => {
+  it('fetchUser returns the user (200) or null (401)', async () => {
     const gateway = TestBed.inject(BffAuthGateway);
     const backend = TestBed.inject(HttpTestingController);
 
-    const logado = gateway.buscarUsuario();
-    backend.expectOne('/bff/user').flush({ id: '1', nome: 'Ana', email: 'a@x', papeis: [] });
-    expect((await logado)?.nome).toBe('Ana');
+    const signedIn = gateway.fetchUser();
+    backend.expectOne('/bff/user').flush({ id: '1', name: 'Ana', email: 'a@x', roles: [] });
+    expect((await signedIn)?.name).toBe('Ana');
 
-    const anonimo = gateway.buscarUsuario();
+    const anonymous = gateway.fetchUser();
     backend.expectOne('/bff/user').flush(null, { status: 401, statusText: 'Unauthorized' });
-    expect(await anonimo).toBeNull();
+    expect(await anonymous).toBeNull();
   });
 });

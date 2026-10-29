@@ -1,76 +1,78 @@
 import { type Routes } from '@angular/router';
-import {
-  apenasLoginSimulado,
-  apenasVisitante,
-  exigeLogin,
-  exigePapel,
-} from '@core/auth/guards/auth.guards';
-import { exigeFeature } from '@core/config/feature-flags';
+import { ROLE } from '@core/auth/auth.enums';
+import { guestOnly, mockLoginOnly, requireLogin, requireRole } from '@core/auth/guards/auth.guards';
+import { requireFeature } from '@core/config/feature-flags';
+import { SESSION_REASON } from '@features/login/session.enums';
 
-// Toda feature é carregada sob demanda: o bundle inicial não cresce quando o app ganha telas.
-// Os gates (canMatch) respeitam as feature flags do environment.
+// Every feature is lazy loaded: the initial bundle doesn't grow when the app gets screens.
+// The gates (canMatch) honor the environment's feature flags.
+// The `path` values are the app URLs (kept in Portuguese).
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'inicio' },
 
-  // ── Públicas: só com a flag `autenticacao` ligada e para quem não está logado ──
+  // ── Public: only with the `authentication` flag on and for users not signed in ──
   {
-    // Login simulado (escolher persona): só no modo mock. No bff o login é a tela da Microsoft.
+    // Simulated login (pick a persona): only in mock mode. In bff the login is the Microsoft screen.
     path: 'login',
-    canMatch: [apenasLoginSimulado, apenasVisitante],
+    canMatch: [mockLoginOnly, guestOnly],
     loadComponent: () => import('@features/login/login-page'),
     title: 'Entrar',
   },
   {
-    // Para onde o backend redireciona depois do logout (bff).
+    // Where the backend redirects after logout (bff).
     path: 'saiu',
-    canMatch: [apenasVisitante],
-    loadComponent: () => import('@features/login/sessao-page'),
-    data: { motivo: 'saiu' },
+    canMatch: [guestOnly],
+    loadComponent: () => import('@features/login/session-page'),
+    data: { reason: SESSION_REASON.signedOut },
     title: 'Você saiu',
   },
   {
-    // O app voltou do login sem sessão: mostra o erro em vez de redirecionar em loop.
+    // The app came back from login without a session: shows the error instead of looping.
     path: 'erro-login',
-    canMatch: [apenasVisitante],
-    loadComponent: () => import('@features/login/sessao-page'),
-    data: { motivo: 'erro' },
+    canMatch: [guestOnly],
+    loadComponent: () => import('@features/login/session-page'),
+    data: { reason: SESSION_REASON.error },
     title: 'Não foi possível entrar',
   },
 
-  // ── Área logada: o gate no pai protege todos os filhos ──
+  // ── Signed-in area: the gate on the parent protects every child ──
   {
     path: '',
-    canMatch: [exigeLogin],
+    canMatch: [requireLogin],
     children: [
       {
         path: 'inicio',
-        loadComponent: () => import('@features/inicio/inicio-page'),
+        loadComponent: () => import('@features/home/home-page'),
         title: 'Início',
         data: { preload: true },
       },
       {
         path: 'produtos',
-        loadChildren: () => import('@features/produtos/produtos.routes'),
+        loadChildren: () => import('@features/products/products.routes'),
         data: { preload: true },
       },
       {
         path: 'catalogo',
-        loadChildren: () => import('@features/catalogo/catalogo.routes'),
+        loadChildren: () => import('@features/catalog/catalog.routes'),
+      },
+      {
+        path: 'ecossistema',
+        loadChildren: () => import('@features/ecosystem/ecosystem.routes'),
       },
       {
         path: 'fornecedores',
-        canMatch: [exigeFeature('fornecedores')],
-        loadChildren: () => import('@features/fornecedores/fornecedores.route'),
+        canMatch: [requireFeature('suppliers')],
+        loadChildren: () => import('@features/suppliers/suppliers.routes'),
       },
       {
-        // Sem preload: canMatch não impede o preload e o JS do admin iria para todo mundo.
+        // No preload: canMatch doesn't prevent preloading and the admin JS would ship to everyone.
         path: 'admin',
-        canMatch: [exigeFeature('areaAdmin'), exigePapel('admin')],
+        canMatch: [requireFeature('adminArea'), requireRole(ROLE.admin)],
         loadChildren: () => import('@features/admin/admin.routes'),
       },
       {
         path: 'sem-permissao',
-        loadComponent: () => import('@core/layout/sem-permissao-page'),
+        loadComponent: () => import('@core/layout/forbidden-page'),
         title: 'Sem permissão',
       },
     ],

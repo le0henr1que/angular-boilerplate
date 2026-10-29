@@ -1,44 +1,45 @@
 import { type HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { InteractionRequiredAuthError } from '@azure/msal-browser';
-import { APP_CONFIG } from '@core/config/app-config';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
+import { AUTH_MODE } from '@core/config/app-config.enums';
 import { Logger } from '@core/logging/logger';
 import { catchError, EMPTY, from, switchMap } from 'rxjs';
 import { Auth } from '../auth';
-import { MSAL } from '../msal/provide-msal';
+import { MSAL } from '../msal/msal.tokens';
 
 /**
- * Modo `msal`: põe `Authorization: Bearer <access token>` nas chamadas para as APIs de
- * `auth.msal.apis`. Outras URLs (APIs públicas, CDN) não recebem token.
+ * `msal` mode: adds `Authorization: Bearer <access token>` to calls to the APIs in
+ * `auth.msal.apis`. Other URLs (public APIs, CDN) don't get a token.
  *
- * O token vem do cache do MSAL; perto de expirar, o MSAL renova sozinho (refresh token).
- * Se a Microsoft exigir login de novo (sessão expirou, senha trocada, MFA), a sessão do app
- * acaba e o usuário vai para o login, voltando para a mesma tela.
+ * The token comes from the MSAL cache; close to expiring, MSAL renews it on its own (refresh token).
+ * If Microsoft requires signing in again (session expired, password changed, MFA), the app session
+ * ends and the user goes to the login, coming back to the same screen.
  */
 export const msalTokenInterceptor: HttpInterceptorFn = (req, next) => {
   const { auth, features } = inject(APP_CONFIG);
-  if (auth.modo !== 'msal' || !features.autenticacao) return next(req);
+  if (auth.mode !== AUTH_MODE.msal || !features.authentication) return next(req);
 
   const api = auth.msal?.apis.find((item) => req.url.startsWith(item.url));
   const msal = inject(MSAL);
-  const conta = msal.getActiveAccount();
-  // Sem conta: segue sem token, a API responde 401 e o authInterceptor cuida do resto.
-  if (!api || !conta) return next(req);
+  const account = msal.getActiveAccount();
+  // No account: go on without a token, the API answers 401 and authInterceptor handles the rest.
+  if (!api || !account) return next(req);
 
-  const sessao = inject(Auth);
-  const log = inject(Logger).com('auth');
+  const session = inject(Auth);
+  const log = inject(Logger).withContext('auth');
 
-  return from(msal.acquireTokenSilent({ scopes: [...api.scopes], account: conta })).pipe(
-    catchError((erro: unknown) => {
-      if (erro instanceof InteractionRequiredAuthError) {
-        log.info('a Microsoft pediu login de novo', { codigo: erro.errorCode });
-        sessao.sessaoExpirou();
-        return EMPTY; // a página vai para o login; esta chamada não segue
+  return from(msal.acquireTokenSilent({ scopes: [...api.scopes], account })).pipe(
+    catchError((error: unknown) => {
+      if (error instanceof InteractionRequiredAuthError) {
+        log.info('Microsoft asked to sign in again', { code: error.errorCode });
+        session.sessionExpired();
+        return EMPTY; // the page goes to the login; this call doesn't proceed
       }
-      throw erro;
+      throw error;
     }),
-    switchMap((resultado) =>
-      next(req.clone({ setHeaders: { Authorization: `Bearer ${resultado.accessToken}` } })),
+    switchMap((result) =>
+      next(req.clone({ setHeaders: { Authorization: `Bearer ${result.accessToken}` } })),
     ),
   );
 };

@@ -1,6 +1,7 @@
 import { computed, inject } from '@angular/core';
-import { type ApplyOptions, LIST_TABLE_CONTEXT } from '../list-table.context';
-import { type UrlField } from '../models/url-field';
+import { type ApplyOptions } from '../models/list-table.types';
+import { LIST_TABLE_CONTEXT } from '../list-table.tokens';
+import { type UrlField } from '../models/url-field.types';
 
 /**
  * "Hook" for building a new filter: call it in the filter component, which must be INSIDE an

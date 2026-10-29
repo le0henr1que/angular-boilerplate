@@ -1,12 +1,7 @@
 import { computed } from '@angular/core';
 import { type Params } from '@angular/router';
-import {
-  fieldToParam,
-  readField,
-  type UrlField,
-  type UrlFields,
-  valuesEqual,
-} from '../models/url-field';
+import { fieldToParam, readField, valuesEqual } from '../utils/url-field.utils';
+import { type UrlField, type UrlFields } from '../models/url-field.types';
 import { type UrlParams } from './inject-url-params';
 
 /**

@@ -1,0 +1,85 @@
+@use 'responsive' as *;
+
+/* ── Filters ── */
+.filters {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.buttons {
+  display: flex;
+  gap: 0.5rem;
+}
+
+/* On wide screens, the fields sit side by side, aligned at the bottom. */
+@include b2b-breakpoint('md') {
+  .filters {
+    flex-direction: row;
+    align-items: flex-end;
+  }
+
+  .search-field {
+    flex: 1;
+  }
+
+  .status-field {
+    width: 11rem;
+  }
+}
+
+/* ── States ── */
+.retry {
+  margin-top: 0.5rem;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.loading-row {
+  height: 2rem;
+}
+
+.empty {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.count {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+
+/* ── Table ── */
+.stale {
+  opacity: 0.5;
+}
+
+.code-link {
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 4px;
+}
+
+.code-link:hover {
+  text-decoration: underline;
+}
+
+.amount {
+  font-variant-numeric: tabular-nums;
+}

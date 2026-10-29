@@ -1,7 +1,8 @@
 import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { type EmptyMediaVariant } from './ui-empty.types';
 
 /*
- * Estado vazio ("nada encontrado", "página não existe"…):
+ * Empty state ("nothing found", "page doesn't exist"…):
  *
  *   <div ui-empty>
  *     <div ui-empty-header>
@@ -71,7 +72,7 @@ export class UiEmptyHeader {}
   host: { '[attr.data-variant]': 'variant()' },
 })
 export class UiEmptyMedia {
-  readonly variant = input<'default' | 'icon'>('default');
+  readonly variant = input<EmptyMediaVariant>('default');
 }
 
 @Component({

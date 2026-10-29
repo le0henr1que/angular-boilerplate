@@ -1,44 +1,44 @@
 import { HttpErrorResponse, type HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { MOCK_AUTH_URLS } from '@core/auth/gateways/mock-auth-gateway';
-import { PERSONAS_MOCK } from '@core/auth/gateways/personas-mock';
-import { APP_CONFIG } from '@core/config/app-config';
+import { MOCK_AUTH_URLS } from '@core/auth/auth.constants';
+import { MOCK_PERSONAS } from '@core/auth/gateways/mock-personas';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
 import { delay, of, throwError } from 'rxjs';
-import { apagarSessaoMock, gravarSessaoMock, lerSessaoMock } from './sessao-mock';
+import { clearMockSession, readMockSession, writeMockSession } from './mock-session';
 
-const LATENCIA_MS = 150;
+const LATENCY_MS = 150;
 
-const responder = <T>(status: number, body: T) =>
-  of(new HttpResponse({ status, body })).pipe(delay(LATENCIA_MS));
-const erro = (status: number, url: string) =>
-  throwError(() => new HttpErrorResponse({ status, url })).pipe(delay(LATENCIA_MS));
+const respond = <T>(status: number, body: T) =>
+  of(new HttpResponse({ status, body })).pipe(delay(LATENCY_MS));
+const error = (status: number, url: string) =>
+  throwError(() => new HttpErrorResponse({ status, url })).pipe(delay(LATENCY_MS));
 
 /**
- * Faz o papel do BFF (backend de autenticação) enquanto ele não existe.
- * Só é registrado com `auth.modo: 'mock'` (ver app.config.ts).
+ * Plays the BFF (authentication backend) while it doesn't exist.
+ * Only registered with `auth.mode: 'mock'` (see app.config.ts).
  *
- *   POST /mock-auth/login  { persona }  → cria o cookie de sessão
- *   POST /mock-auth/logout              → apaga o cookie
- *   GET  auth.urls.usuario              → 200 com o usuário do cookie, ou 401
+ *   POST /mock-auth/login  { persona }  → creates the session cookie
+ *   POST /mock-auth/logout              → deletes the cookie
+ *   GET  auth.urls.user                 → 200 with the cookie's user, or 401
  */
 export const mockAuthInterceptor: HttpInterceptorFn = (req, next) => {
   const { auth } = inject(APP_CONFIG);
 
   if (req.method === 'POST' && req.url === MOCK_AUTH_URLS.login) {
     const { persona } = req.body as { persona: string };
-    if (!PERSONAS_MOCK.some((p) => p.id === persona)) return erro(400, req.url);
-    gravarSessaoMock(persona);
-    return responder(204, null);
+    if (!MOCK_PERSONAS.some((p) => p.id === persona)) return error(400, req.url);
+    writeMockSession(persona);
+    return respond(204, null);
   }
 
   if (req.method === 'POST' && req.url === MOCK_AUTH_URLS.logout) {
-    apagarSessaoMock();
-    return responder(204, null);
+    clearMockSession();
+    return respond(204, null);
   }
 
-  if (req.method === 'GET' && req.url === auth.urls.usuario) {
-    const sessao = lerSessaoMock();
-    return sessao ? responder(200, sessao.usuario) : erro(401, req.url);
+  if (req.method === 'GET' && req.url === auth.urls.user) {
+    const session = readMockSession();
+    return session ? respond(200, session.user) : error(401, req.url);
   }
 
   return next(req);

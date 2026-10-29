@@ -1,10 +1,7 @@
-export { CABECALHO_CORRELACAO, logInterceptor, STATUS_ESPERADOS } from './http/log.interceptor';
-export { type LogConfig, type NivelLog } from './log-config';
-export {
-  type DestinoLog,
-  LOG_DESTINOS,
-  type LogDeContexto,
-  Logger,
-  type RegistroLog,
-} from './logger';
+export { logInterceptor } from './http/log.interceptor';
+export { ContextLogger, Logger } from './logger';
+export * from './logging.constants';
+export * from './logging.enums';
+export * from './logging.tokens';
+export * from './logging.types';
 export { provideLogging } from './provide-logging';

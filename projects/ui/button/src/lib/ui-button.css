@@ -38,7 +38,7 @@
   pointer-events: none;
 }
 
-/* ── Variantes ── */
+/* ── Variants ── */
 :host([data-variant='secondary']) {
   background: var(--secondary);
   color: var(--secondary-foreground);
@@ -82,7 +82,7 @@
   text-decoration: underline;
 }
 
-/* ── Tamanhos ── */
+/* ── Sizes ── */
 :host([data-size='sm']) {
   height: 1.75rem;
   font-size: 0.8rem;

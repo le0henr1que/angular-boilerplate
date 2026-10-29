@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /*
- * Cartão e suas partes. Cada parte é um atributo aplicado a um elemento nativo,
- * para você escolher a tag certa (article, h2, p…):
+ * Card and its parts. Each part is an attribute applied to a native element,
+ * so you pick the right tag (article, h2, p…):
  *
  *   <article ui-card>
  *     <header ui-card-header>

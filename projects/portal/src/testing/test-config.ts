@@ -1,45 +1,48 @@
 import { type Provider } from '@angular/core';
-import { type AppConfig, provideAppConfig } from '@core/config/app-config';
-import { type FeatureFlags } from '@core/config/feature-flags';
+import { type AppConfig } from '@core/config/app-config.types';
+import { provideAppConfig } from '@core/config/app-config';
+import { APP_ENVIRONMENT, AUTH_MODE } from '@core/config/app-config.enums';
+import { LOG_LEVEL } from '@core/logging/logging.enums';
+import { type FeatureFlags } from '@core/config/feature-flags.types';
 
 export const TEST_FEATURES: FeatureFlags = {
-  // Desligada por padrão: testes de tela não precisam logar. Os testes de auth ligam.
-  autenticacao: false,
-  controleDePapeis: true,
-  areaAdmin: true,
-  fornecedores: true,
+  // Off by default: screen tests don't need to sign in. The auth tests turn it on.
+  authentication: false,
+  roleControl: true,
+  adminArea: true,
+  suppliers: true,
   preload: false,
-  transicoesDeTela: false,
-  devtoolsQuery: false,
+  screenTransitions: false,
+  queryDevtools: false,
 };
 
 export const TEST_APP_CONFIG: AppConfig = {
-  environment: 'development',
+  environment: APP_ENVIRONMENT.development,
   appName: 'Portal (TESTE)',
-  version: '0.0.0-teste',
+  version: '0.0.0-test',
   apiUrl: '/api',
   mockApi: false,
   auth: {
-    modo: 'mock',
-    urls: { login: '/bff/login', logout: '/bff/logout', usuario: '/bff/user' },
-    headerCsrf: { nome: 'X-CSRF', valor: '1' },
+    mode: AUTH_MODE.mock,
+    urls: { login: '/bff/login', logout: '/bff/logout', user: '/bff/user' },
+    csrfHeader: { name: 'X-CSRF', value: '1' },
     msal: null,
   },
-  // Sem provideLogging() nos testes não há destino: nada aparece, mas a lógica roda.
-  log: { nivel: 'debug', remoto: null },
+  // Without provideLogging() tests have no target: nothing shows, but the logic runs.
+  log: { level: LOG_LEVEL.debug, remote: null },
   features: TEST_FEATURES,
 };
 
 /**
- * Config de ambiente para testes. Sobrescreva só o que o teste precisar;
- * `features` é mesclado: `provideTestAppConfig({ features: { autenticacao: true } })`.
+ * Environment config for tests. Override only what the test needs;
+ * `features` is merged: `provideTestAppConfig({ features: { authentication: true } })`.
  */
 export function provideTestAppConfig(
-  parcial: Partial<Omit<AppConfig, 'features'>> & { features?: Partial<FeatureFlags> } = {},
+  overrides: Partial<Omit<AppConfig, 'features'>> & { features?: Partial<FeatureFlags> } = {},
 ): Provider {
   return provideAppConfig({
     ...TEST_APP_CONFIG,
-    ...parcial,
-    features: { ...TEST_FEATURES, ...parcial.features },
+    ...overrides,
+    features: { ...TEST_FEATURES, ...overrides.features },
   });
 }

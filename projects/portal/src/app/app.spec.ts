@@ -8,66 +8,66 @@ import { render, screen } from '@testing-library/angular';
 import { App } from './app';
 
 @Component({ template: '<h1>Tela</h1>' })
-class Tela {}
+class Screen {}
 
-/** Rota que nunca termina de abrir, como a que espera o redirect para a Microsoft. */
-const nuncaAbre = () => new Promise<never>(() => undefined);
+/** A route that never finishes opening, like the one waiting for the redirect to Microsoft. */
+const neverOpens = () => new Promise<never>(() => undefined);
 
-describe('App (carregamento global)', () => {
-  const saindoDoApp = signal(false);
+describe('App (global loading)', () => {
+  const leavingApp = signal(false);
 
-  async function abrir(rotaInicial: string) {
+  async function open(initialRoute: string) {
     await render(App, {
       providers: [
-        provideTestAppConfig({ features: { autenticacao: false } }),
+        provideTestAppConfig({ features: { authentication: false } }),
         provideTestQueryClient(),
         provideRouter([
-          { path: 'tela', component: Tela },
-          { path: 'presa', canMatch: [nuncaAbre], component: Tela },
+          { path: 'tela', component: Screen },
+          { path: 'presa', canMatch: [neverOpens], component: Screen },
         ]),
         {
           provide: Auth,
           useValue: {
-            saindoDoApp,
-            usuario: () => null,
-            autenticado: () => false,
-            ativa: false,
-            podeAcessar: () => true,
+            leavingApp,
+            user: () => null,
+            authenticated: () => false,
+            enabled: false,
+            canAccess: () => true,
           },
         },
       ],
     });
-    void TestBed.inject(Router).navigateByUrl(rotaInicial);
+    void TestBed.inject(Router).navigateByUrl(initialRoute);
   }
 
-  const spinnerGlobal = () => document.querySelector('.carregamento-global');
+  const globalSpinner = () => document.querySelector('.global-loading');
 
   beforeEach(() => {
-    saindoDoApp.set(false);
-    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false })); // tema do cabeçalho
+    leavingApp.set(false);
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: false })); // header theme
   });
 
   afterEach(() => vi.unstubAllGlobals());
 
-  it('mostra o carregamento até a 1ª tela ficar pronta, com o resto inerte por baixo', async () => {
-    await abrir('/presa');
-    expect(spinnerGlobal()).toBeInTheDocument();
+  it('shows the loading until the 1st screen is ready, with the rest inert underneath', async () => {
+    await open('/presa');
+    expect(globalSpinner()).toBeInTheDocument();
     expect(screen.getByText('Carregando…')).toBeInTheDocument();
     expect(document.querySelector('main')).toHaveAttribute('inert');
   });
 
-  it('some quando a 1ª navegação termina', async () => {
-    await abrir('/tela');
-    await vi.waitFor(() => expect(spinnerGlobal()).not.toBeInTheDocument());
+  it('goes away when the 1st navigation ends', async () => {
+    await open('/tela');
+    await vi.waitFor(() => expect(globalSpinner()).not.toBeInTheDocument());
     expect(document.querySelector('main')).not.toHaveAttribute('inert');
   });
 
-  it('volta a aparecer quando a página vai sair para a Microsoft (login/logout)', async () => {
-    await abrir('/tela');
-    await vi.waitFor(() => expect(spinnerGlobal()).not.toBeInTheDocument());
+  it('shows again when the page is about to leave for Microsoft (login/logout)', async () => {
+    await open('/tela');
+    await vi.waitFor(() => expect(globalSpinner()).not.toBeInTheDocument());
 
-    saindoDoApp.set(true);
-    await vi.waitFor(() => expect(spinnerGlobal()).toBeInTheDocument());
+    leavingApp.set(true);
+    await vi.waitFor(() => expect(globalSpinner()).toBeInTheDocument());
     expect(document.querySelector('app-header')).toHaveAttribute('inert');
   });
 });

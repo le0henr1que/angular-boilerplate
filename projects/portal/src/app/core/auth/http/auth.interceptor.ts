@@ -1,11 +1,13 @@
 import { HttpErrorResponse, type HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
-import { type AppConfig, APP_CONFIG } from '@core/config/app-config';
+import { type AppConfig } from '@core/config/app-config.types';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
+import { AUTH_MODE } from '@core/config/app-config.enums';
 import { catchError, throwError } from 'rxjs';
 import { Auth } from '../auth';
 
-/** A requisição vai para o NOSSO backend (API ou endpoints de auth)? Só esses levam cookie. */
-function ehNossoBackend(url: string, config: AppConfig): boolean {
+/** Is the request going to OUR backend (API or auth endpoints)? Only those carry the cookie. */
+function isOurBackend(url: string, config: AppConfig): boolean {
   const bases = [config.apiUrl, ...Object.values(config.auth.urls)];
   return bases.some(
     (base) => url === base || url.startsWith(`${base}/`) || url.startsWith(`${base}?`),
@@ -13,35 +15,35 @@ function ehNossoBackend(url: string, config: AppConfig): boolean {
 }
 
 /**
- * Autenticação no lado do front (modos mock e bff; no msal só o tratamento do 401):
- * - `withCredentials`: manda o cookie também quando a API está em outro domínio;
- * - header anti-CSRF exigido pelo backend (cookie vai sozinho, então o backend precisa
- *   de uma prova de que a chamada veio do nosso app);
- * - 401 em qualquer chamada = sessão expirou → volta para o login.
+ * Front-end side of authentication (mock and bff modes; in msal only the 401 handling):
+ * - `withCredentials`: sends the cookie also when the API is on another domain;
+ * - anti-CSRF header required by the backend (the cookie goes on its own, so the backend needs
+ *   proof that the call came from our app);
+ * - 401 on any call = the session expired → back to the login.
  */
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const config = inject(APP_CONFIG);
-  if (!config.features.autenticacao || !ehNossoBackend(req.url, config)) return next(req);
+  if (!config.features.authentication || !isOurBackend(req.url, config)) return next(req);
 
   const auth = inject(Auth);
-  const { headerCsrf, modo } = config.auth;
-  // No modo msal a autenticação é o Bearer (msalTokenInterceptor): sem cookie e sem CSRF.
-  const comCookie =
-    modo === 'msal'
+  const { csrfHeader, mode } = config.auth;
+  // In msal mode authentication is the Bearer (msalTokenInterceptor): no cookie and no CSRF.
+  const withCookie =
+    mode === AUTH_MODE.msal
       ? req
       : req.clone({
           withCredentials: true,
-          setHeaders: headerCsrf ? { [headerCsrf.nome]: headerCsrf.valor } : {},
+          setHeaders: csrfHeader ? { [csrfHeader.name]: csrfHeader.value } : {},
         });
 
-  return next(comCookie).pipe(
-    catchError((erro: unknown) => {
-      // 401 no "/me" é a resposta normal de "não logado", não expiração.
-      const ehConsultaDeSessao = req.url === config.auth.urls.usuario;
-      if (erro instanceof HttpErrorResponse && erro.status === 401 && !ehConsultaDeSessao) {
-        auth.sessaoExpirou();
+  return next(withCookie).pipe(
+    catchError((error: unknown) => {
+      // A 401 on "/me" is the normal "not signed in" response, not an expiration.
+      const isSessionCheck = req.url === config.auth.urls.user;
+      if (error instanceof HttpErrorResponse && error.status === 401 && !isSessionCheck) {
+        auth.sessionExpired();
       }
-      return throwError(() => erro);
+      return throwError(() => error);
     }),
   );
 };

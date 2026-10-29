@@ -1,57 +1,60 @@
 import { DOCUMENT } from '@angular/common';
-import { inject, InjectionToken, type Provider } from '@angular/core';
+import { inject, type Provider } from '@angular/core';
 import {
   BrowserCacheLocation,
   type IPublicClientApplication,
   LogLevel,
   PublicClientApplication,
 } from '@azure/msal-browser';
-import { APP_CONFIG } from '@core/config/app-config';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
+import { MSAL_CACHE } from '@core/config/app-config.enums';
 import { Logger } from '@core/logging/logger';
+import { AUTH_PATHS } from '../auth.constants';
+import { MSAL } from './msal.tokens';
 
-/** O cliente do MSAL (PublicClientApplication). Só existe no injector do CarregadorMsal. */
-export const MSAL = new InjectionToken<IPublicClientApplication>('MSAL');
+/** Placeholder text in the sample environment values: a hint that they weren't filled in. */
+const SAMPLE_VALUE_MARKER = 'REPLACE-WITH';
 
-/** Converte '/saiu' em 'https://portal.exemplo.com/saiu' (o MSAL só aceita URL absoluta). */
-export function urlAbsoluta(caminho: string, documento: Document): string {
-  return new URL(caminho, documento.baseURI).href;
+/** Turns '/saiu' into 'https://portal.example.com/saiu' (MSAL only accepts absolute URLs). */
+export function absoluteUrl(path: string, document: Document): string {
+  return new URL(path, document.baseURI).href;
 }
 
-function criarInstanciaMsal(): IPublicClientApplication {
+function createMsalInstance(): IPublicClientApplication {
   const { auth, features } = inject(APP_CONFIG);
   const { msal } = auth;
-  if (!msal) throw new Error("auth.modo é 'msal', mas auth.msal está null no environment.");
+  if (!msal) throw new Error("auth.mode is 'msal', but auth.msal is null in the environment.");
 
-  const documento = inject(DOCUMENT);
+  const document = inject(DOCUMENT);
   const logger = inject(Logger);
-  const log = logger.com('msal');
-  if (features.autenticacao && msal.clientId.includes('COLOQUE')) {
-    log.error('auth.msal ainda tem os valores de exemplo: preencha clientId e authority.');
+  const log = logger.withContext('msal');
+  if (features.authentication && msal.clientId.includes(SAMPLE_VALUE_MARKER)) {
+    log.error('auth.msal still has the sample values: fill in clientId and authority.');
   }
 
   return new PublicClientApplication({
     auth: {
       clientId: msal.clientId,
       authority: msal.authority,
-      redirectUri: urlAbsoluta(msal.redirectUri, documento),
-      postLogoutRedirectUri: urlAbsoluta('/saiu', documento),
+      redirectUri: absoluteUrl(msal.redirectUri, document),
+      postLogoutRedirectUri: absoluteUrl(AUTH_PATHS.signedOut, document),
     },
     cache: {
       cacheLocation:
-        msal.cache === 'localStorage'
+        msal.cache === MSAL_CACHE.localStorage
           ? BrowserCacheLocation.LocalStorage
           : BrowserCacheLocation.SessionStorage,
     },
     system: {
       loggerOptions: {
-        // O log interno do MSAL vai para o nosso Logger, como [msal]. Nunca loga dados pessoais.
+        // MSAL's internal log goes to our Logger, as [msal]. Never logs personal data.
         piiLoggingEnabled: false,
-        logLevel: logger.ativo('debug') ? LogLevel.Info : LogLevel.Warning,
-        loggerCallback: (nivel, mensagem, contemPii) => {
-          if (contemPii) return;
-          if (nivel === LogLevel.Error) log.error(mensagem);
-          else if (nivel === LogLevel.Warning) log.warn(mensagem);
-          else log.debug(mensagem);
+        logLevel: logger.isEnabled('debug') ? LogLevel.Info : LogLevel.Warning,
+        loggerCallback: (level, message, containsPii) => {
+          if (containsPii) return;
+          if (level === LogLevel.Error) log.error(message);
+          else if (level === LogLevel.Warning) log.warn(message);
+          else log.debug(message);
         },
       },
     },
@@ -59,14 +62,14 @@ function criarInstanciaMsal(): IPublicClientApplication {
 }
 
 /**
- * Registra o MSAL (só no modo `msal`, no injector do CarregadorMsal).
+ * Registers MSAL (only in `msal` mode, in the MsalLoader injector).
  *
- * Usamos o @azure/msal-browser direto, sem o @azure/msal-angular: dele só usaríamos o
- * MsalService, um invólucro fino que transforma Promise em Observable. Os gates do projeto
- * (exigeLogin, exigePapel, proteção contra loop) valem para todos os modos e o token é posto
- * pelo msalTokenInterceptor, então MsalGuard/MsalInterceptor/MsalRedirectComponent não servem.
- * Um pacote a menos, e sem amarrar a versão do Angular à do msal-angular nos upgrades.
+ * We use @azure/msal-browser directly, without @azure/msal-angular: from it we would only use
+ * MsalService, a thin wrapper that turns Promises into Observables. The project's gates
+ * (requireLogin, requireRole, loop protection) apply to every mode and the token is added by
+ * msalTokenInterceptor, so MsalGuard/MsalInterceptor/MsalRedirectComponent don't fit.
+ * One package less, and no tying the Angular version to msal-angular's on upgrades.
  */
 export function provideMsal(): Provider[] {
-  return [{ provide: MSAL, useFactory: criarInstanciaMsal }];
+  return [{ provide: MSAL, useFactory: createMsalInstance }];
 }

@@ -4,7 +4,7 @@ import { UiCard, UiCardImports } from '@supermercado/ui/card';
 import { type Meta, type StoryObj, moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<UiCard> = {
-  title: 'Componentes/Card',
+  title: 'Components/Card',
   component: UiCard,
   decorators: [moduleMetadata({ imports: [UiCardImports, UiButton, UiBadge] })],
 };
@@ -12,7 +12,7 @@ const meta: Meta<UiCard> = {
 export default meta;
 type Story = StoryObj<UiCard>;
 
-export const Completo: Story = {
+export const Complete: Story = {
   render: () => ({
     template: `
       <article ui-card style="max-width: 24rem">
@@ -33,7 +33,7 @@ export const Completo: Story = {
   }),
 };
 
-export const SoCabecalho: Story = {
+export const HeaderOnly: Story = {
   render: () => ({
     template: `
       <article ui-card style="max-width: 14rem">

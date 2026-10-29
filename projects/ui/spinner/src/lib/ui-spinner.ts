@@ -1,8 +1,8 @@
 import { ChangeDetectionStrategy, Component } from '@angular/core';
 
 /**
- * Indicador de carregamento. O tamanho segue o font-size e a cor segue o texto (currentColor).
- * Dê um nome acessível a ele: <ui-spinner aria-label="Carregando" />
+ * Loading indicator. Its size follows the font-size and its color follows the text (currentColor).
+ * Give it an accessible name: <ui-spinner aria-label="Carregando" />
  */
 @Component({
   selector: 'ui-spinner',
@@ -26,9 +26,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
     svg {
       width: 100%;
       height: 100%;
-      animation: girar 0.8s linear infinite;
+      animation: spin 0.8s linear infinite;
     }
-    @keyframes girar {
+    @keyframes spin {
       to {
         transform: rotate(360deg);
       }

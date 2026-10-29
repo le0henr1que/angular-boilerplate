@@ -3,7 +3,7 @@ import { UiIcon } from '@supermercado/ui/icon';
 import { type Meta, type StoryObj, argsToTemplate, moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<UiButton> = {
-  title: 'Componentes/Button',
+  title: 'Components/Button',
   component: UiButton,
   decorators: [moduleMetadata({ imports: [UiButton, UiIcon] })],
   args: { variant: 'default', size: 'default' },
@@ -30,10 +30,10 @@ export const Ghost: Story = { args: { variant: 'ghost' } };
 export const Destructive: Story = { args: { variant: 'destructive' } };
 export const Link: Story = { args: { variant: 'link' } };
 
-export const Tamanhos: Story = {
+export const Sizes: Story = {
   render: () => ({
     template: `
-      <div class="sb-linha">
+      <div class="sb-row">
         <button ui-button size="sm">Pequeno</button>
         <button ui-button>Médio</button>
         <button ui-button size="lg">Grande</button>
@@ -43,10 +43,10 @@ export const Tamanhos: Story = {
   }),
 };
 
-export const ComIcone: Story = {
+export const WithIcon: Story = {
   render: () => ({
     template: `
-      <div class="sb-linha">
+      <div class="sb-row">
         <button ui-button><ui-icon name="search" /> Pesquisar</button>
         <button ui-button variant="outline">Continuar <ui-icon name="arrow-right" /></button>
       </div>
@@ -54,13 +54,13 @@ export const ComIcone: Story = {
   }),
 };
 
-export const Desabilitado: Story = {
+export const Disabled: Story = {
   render: () => ({
     template: `<button ui-button disabled>Indisponível</button>`,
   }),
 };
 
-export const ComoLink: Story = {
+export const AsLink: Story = {
   render: () => ({
     template: `<a ui-button variant="outline" href="#">Sou um link com cara de botão</a>`,
   }),

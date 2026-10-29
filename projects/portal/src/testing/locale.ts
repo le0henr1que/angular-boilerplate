@@ -4,7 +4,7 @@ import { LOCALE_ID, type Provider } from '@angular/core';
 
 registerLocaleData(localePt);
 
-/** Mesmo locale do app (app.config.ts): moeda "R$ 1.500,00" e datas brasileiras. */
+/** Same locale as the app (app.config.ts): "R$ 1.500,00" currency and Brazilian dates. */
 export function provideLocalePtBr(): Provider {
   return { provide: LOCALE_ID, useValue: 'pt-BR' };
 }

@@ -2,32 +2,32 @@ import { UiBadge } from '@supermercado/ui/badge';
 import { UiTable, UiTableImports } from '@supermercado/ui/table';
 import { type Meta, type StoryObj, moduleMetadata } from '@storybook/angular';
 
-const PRODUTOS = [
+const PRODUCTS = [
   {
-    codigo: 'HO-1',
-    nome: 'Banana prata (kg)',
-    categoria: 'Hortifruti',
-    preco: 'R$ 7,99',
+    code: 'HO-1',
+    name: 'Banana prata (kg)',
+    category: 'Hortifruti',
+    price: 'R$ 7,99',
     status: 'Disponível',
   },
   {
-    codigo: 'BE-2',
-    nome: 'Suco de laranja 1 L',
-    categoria: 'Bebidas',
-    preco: 'R$ 9,80',
+    code: 'BE-2',
+    name: 'Suco de laranja 1 L',
+    category: 'Bebidas',
+    price: 'R$ 9,80',
     status: 'Estoque baixo',
   },
   {
-    codigo: 'PA-3',
-    nome: 'Pão de forma integral',
-    categoria: 'Padaria',
-    preco: 'R$ 12,50',
+    code: 'PA-3',
+    name: 'Pão de forma integral',
+    category: 'Padaria',
+    price: 'R$ 12,50',
     status: 'Esgotado',
   },
 ];
 
 const meta: Meta<UiTable> = {
-  title: 'Componentes/Table',
+  title: 'Components/Table',
   component: UiTable,
   decorators: [moduleMetadata({ imports: [UiTableImports, UiBadge] })],
 };
@@ -37,7 +37,7 @@ type Story = StoryObj<UiTable>;
 
 export const Default: Story = {
   render: () => ({
-    props: { produtos: PRODUTOS },
+    props: { products: PRODUCTS },
     template: `
       <div ui-table-container>
         <table ui-table>
@@ -51,13 +51,13 @@ export const Default: Story = {
             </tr>
           </thead>
           <tbody ui-tbody>
-            @for (produto of produtos; track produto.codigo) {
+            @for (product of products; track product.code) {
               <tr ui-tr>
-                <td ui-td>{{ produto.codigo }}</td>
-                <td ui-td>{{ produto.nome }}</td>
-                <td ui-td>{{ produto.categoria }}</td>
-                <td ui-td style="text-align: right">{{ produto.preco }}</td>
-                <td ui-td><span ui-badge variant="outline">{{ produto.status }}</span></td>
+                <td ui-td>{{ product.code }}</td>
+                <td ui-td>{{ product.name }}</td>
+                <td ui-td>{{ product.category }}</td>
+                <td ui-td style="text-align: right">{{ product.price }}</td>
+                <td ui-td><span ui-badge variant="outline">{{ product.status }}</span></td>
               </tr>
             }
           </tbody>

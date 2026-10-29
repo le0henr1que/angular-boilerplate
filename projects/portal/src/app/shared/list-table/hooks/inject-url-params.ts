@@ -1,7 +1,7 @@
 import { inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, type Params, type QueryParamsHandling, Router } from '@angular/router';
-import { type ApplyOptions } from '../list-table.context';
+import { type ApplyOptions } from '../models/list-table.types';
 
 /** Only the given parameters change; the others in the URL (from other parts of the screen) stay. */
 const MERGE_WITH_URL: QueryParamsHandling = 'merge';

@@ -1,19 +1,19 @@
 import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
 import { Auth } from '@core/auth/auth';
-import { APP_CONFIG } from '@core/config/app-config';
-import { type FeatureFlag } from '@core/config/feature-flags';
+import { APP_CONFIG } from '@core/config/app-config.tokens';
+import { type FeatureFlag } from '@core/config/feature-flags.types';
 import { UiBadge } from '@supermercado/ui/badge';
 import { UiCardImports } from '@supermercado/ui/card';
 import { UiTableImports } from '@supermercado/ui/table';
 
-/** Painel de diagnóstico: quem está logado e quais flags estão ligadas neste ambiente. */
+/** Diagnostics panel: who is signed in and which flags are on in this environment. */
 @Component({
   selector: 'app-admin-page',
   imports: [UiBadge, UiCardImports, UiTableImports],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="pagina">
-      <header class="titulo-pagina">
+    <section class="page">
+      <header class="page-title">
         <h1>Administração</h1>
         <p>Sessão atual e feature flags do ambiente "{{ config.environment }}".</p>
       </header>
@@ -21,14 +21,14 @@ import { UiTableImports } from '@supermercado/ui/table';
       <article ui-card>
         <div ui-card-header>
           <h2 ui-card-title>Sessão</h2>
-          <p ui-card-description>Autenticação: modo "{{ config.auth.modo }}"</p>
+          <p ui-card-description>Autenticação: modo "{{ config.auth.mode }}"</p>
         </div>
         <div ui-card-content>
-          @if (auth.usuario(); as usuario) {
-            <p>{{ usuario.nome }} ({{ usuario.email }})</p>
+          @if (auth.user(); as user) {
+            <p>{{ user.name }} ({{ user.email }})</p>
             <p>
-              @for (papel of usuario.papeis; track papel) {
-                <span ui-badge variant="secondary">{{ papel }}</span>
+              @for (role of user.roles; track role) {
+                <span ui-badge variant="secondary">{{ role }}</span>
               }
             </p>
           } @else {
@@ -46,14 +46,14 @@ import { UiTableImports } from '@supermercado/ui/table';
             </tr>
           </thead>
           <tbody ui-tbody>
-            @for (flag of flags; track flag.nome) {
+            @for (flag of flags; track flag.name) {
               <tr ui-tr>
                 <td ui-td>
-                  <code>{{ flag.nome }}</code>
+                  <code>{{ flag.name }}</code>
                 </td>
                 <td ui-td>
-                  <span ui-badge [variant]="flag.ligada ? 'default' : 'outline'">
-                    {{ flag.ligada ? 'ligada' : 'desligada' }}
+                  <span ui-badge [variant]="flag.on ? 'default' : 'outline'">
+                    {{ flag.on ? 'ligada' : 'desligada' }}
                   </span>
                 </td>
               </tr>
@@ -67,8 +67,8 @@ import { UiTableImports } from '@supermercado/ui/table';
 export default class AdminPage {
   protected readonly config = inject(APP_CONFIG);
   protected readonly auth = inject(Auth);
-  protected readonly flags = (Object.keys(this.config.features) as FeatureFlag[]).map((nome) => ({
-    nome,
-    ligada: this.config.features[nome],
+  protected readonly flags = (Object.keys(this.config.features) as FeatureFlag[]).map((name) => ({
+    name,
+    on: this.config.features[name],
   }));
 }

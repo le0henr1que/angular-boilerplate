@@ -12,99 +12,60 @@ import {
 } from '@angular/core';
 import { UiSkeleton } from '@supermercado/ui/skeleton';
 import { UiTableImports } from '@supermercado/ui/table';
-import { type Caminho, lerCaminho, type ValorEm } from './caminho';
+import { type Path } from './path.types';
+import { readPath } from './path.utils';
+import {
+  type UiCellContext,
+  type UiColumn,
+  type UiColumnHeaderContext,
+} from './ui-data-table.types';
 
 /*
- * Tabela montada a partir dos dados e de uma lista de colunas (como a DataTable do React):
+ * Table built from the data and a list of columns (like React's DataTable):
  *
- *   colunas: UiColuna<Pedido>[] = [
- *     { chave: 'user.name', titulo: 'Cliente' },
- *     { chave: 'total', titulo: 'Total', formatar: (v) => moeda(v), alinhar: 'direita' },
- *     { chave: 'status', titulo: 'Status' },
- *     { id: 'acoes', titulo: '' },                 // coluna que não vem do objeto
+ *   columns: UiColumn<Order>[] = [
+ *     { key: 'user.name', title: 'Cliente' },
+ *     { key: 'total', title: 'Total', format: (v) => currency(v), align: 'end' },
+ *     { key: 'status', title: 'Status' },
+ *     { id: 'actions', title: '' },                 // column that doesn't come from the object
  *   ];
  *
- *   <ui-data-table [dados]="pedidos()" [colunas]="colunas">
- *     <ng-template uiCelula="status" let-valor let-linha="linha">
- *       <span ui-badge>{{ valor }}</span>
+ *   <ui-data-table [data]="orders()" [columns]="columns">
+ *     <ng-template uiCell="status" let-value let-row="row">
+ *       <span ui-badge>{{ value }}</span>
  *     </ng-template>
- *     <ng-template uiCelula="acoes" let-linha="linha">
- *       <button ui-button (click)="editar(linha)">Editar</button>
+ *     <ng-template uiCell="actions" let-row="row">
+ *       <button ui-button (click)="edit(row)">Editar</button>
  *     </ng-template>
  *   </ui-data-table>
  *
- * O que aparece em cada célula: template uiCelula → formatar → valor puro.
+ * What each cell shows: uiCell template → format → raw value.
  */
 
-export type UiAlinhamento = 'esquerda' | 'centro' | 'direita';
+/** Replaces the cells of a column: <ng-template uiCell="status" let-value let-row="row"> */
+@Directive({ selector: 'ng-template[uiCell]' })
+export class UiCell {
+  readonly uiCell = input.required<string>();
+  readonly template = inject<TemplateRef<UiCellContext>>(TemplateRef);
 
-interface ColunaBase {
-  titulo: string;
-  alinhar?: UiAlinhamento;
-  /** Qualquer largura CSS: '8rem', '20%'… */
-  largura?: string;
-}
-
-/** Coluna ligada a um valor do objeto. `formatar` recebe o valor já com o tipo certo. */
-export type UiColunaDados<T, P extends Caminho<T> = Caminho<T>> = P extends Caminho<T>
-  ? ColunaBase & {
-      chave: P;
-      /** Identificador usado pelo uiCelula/uiCabecalho. Padrão: a própria chave. */
-      id?: string;
-      formatar?: (valor: ValorEm<T, P>, linha: T) => unknown;
-    }
-  : never;
-
-/** Coluna que não vem do objeto (ações, por exemplo): o conteúdo vem de um uiCelula. */
-export type UiColunaExtra<T> = ColunaBase & {
-  id: string;
-  chave?: never;
-  formatar?: (valor: undefined, linha: T) => unknown;
-};
-
-export type UiColuna<T> = UiColunaDados<T> | UiColunaExtra<T>;
-
-export interface UiCelulaContexto {
-  /** O valor no caminho da coluna (let-valor). */
-  $implicit: any;
-  /** O objeto inteiro da linha (let-linha="linha"). */
-  linha: any;
-  /** Posição da linha (let-i="indice"). */
-  indice: number;
-}
-
-export interface UiCabecalhoContexto {
-  /** A coluna (let-coluna). */
-  $implicit: UiColuna<any>;
-}
-
-/** Troca o conteúdo das células de uma coluna: <ng-template uiCelula="status" let-valor let-linha="linha"> */
-@Directive({ selector: 'ng-template[uiCelula]' })
-export class UiCelula {
-  readonly uiCelula = input.required<string>();
-  readonly template = inject<TemplateRef<UiCelulaContexto>>(TemplateRef);
-
-  static ngTemplateContextGuard(_dir: UiCelula, _ctx: unknown): _ctx is UiCelulaContexto {
+  static ngTemplateContextGuard(_dir: UiCell, _ctx: unknown): _ctx is UiCellContext {
     return true;
   }
 }
 
-/** Troca o título de uma coluna: <ng-template uiCabecalho="status" let-coluna> */
-@Directive({ selector: 'ng-template[uiCabecalho]' })
-export class UiCabecalho {
-  readonly uiCabecalho = input.required<string>();
-  readonly template = inject<TemplateRef<UiCabecalhoContexto>>(TemplateRef);
+/** Replaces a column's title: <ng-template uiColumnHeader="status" let-column> */
+@Directive({ selector: 'ng-template[uiColumnHeader]' })
+export class UiColumnHeader {
+  readonly uiColumnHeader = input.required<string>();
+  readonly template = inject<TemplateRef<UiColumnHeaderContext>>(TemplateRef);
 
-  static ngTemplateContextGuard(_dir: UiCabecalho, _ctx: unknown): _ctx is UiCabecalhoContexto {
+  static ngTemplateContextGuard(
+    _dir: UiColumnHeader,
+    _ctx: unknown,
+  ): _ctx is UiColumnHeaderContext {
     return true;
   }
 }
-
-const ALINHAMENTO: Record<UiAlinhamento, string> = {
-  esquerda: 'start',
-  centro: 'center',
-  direita: 'end',
-};
 
 @Component({
   selector: 'ui-data-table',
@@ -114,59 +75,59 @@ const ALINHAMENTO: Record<UiAlinhamento, string> = {
       <table ui-table>
         <thead ui-thead>
           <tr ui-tr>
-            @for (coluna of colunas(); track idDe(coluna)) {
+            @for (column of columns(); track idOf(column)) {
               <th
                 ui-th
                 scope="col"
-                [style.text-align]="alinhamento(coluna)"
-                [style.width]="coluna.largura"
+                [style.text-align]="column.align ?? null"
+                [style.width]="column.width"
               >
-                @if (cabecalhos().get(idDe(coluna)); as template) {
+                @if (headers().get(idOf(column)); as template) {
                   <ng-container
                     [ngTemplateOutlet]="template"
-                    [ngTemplateOutletContext]="{ $implicit: coluna }"
+                    [ngTemplateOutletContext]="{ $implicit: column }"
                   />
                 } @else {
-                  {{ coluna.titulo }}
+                  {{ column.title }}
                 }
               </th>
             }
           </tr>
         </thead>
 
-        <tbody ui-tbody [attr.aria-busy]="carregando() || null">
-          @if (carregando()) {
-            @for (i of linhasEsqueleto(); track i) {
+        <tbody ui-tbody [attr.aria-busy]="loading() || null">
+          @if (loading()) {
+            @for (i of skeletonRows(); track i) {
               <tr ui-tr>
-                @for (coluna of colunas(); track idDe(coluna)) {
+                @for (column of columns(); track idOf(column)) {
                   <td ui-td><ui-skeleton /></td>
                 }
               </tr>
             }
           } @else {
-            @for (linha of dados(); track rastrear(linha, i); let i = $index) {
+            @for (row of data(); track track(row, i); let i = $index) {
               <tr ui-tr>
-                @for (coluna of colunas(); track idDe(coluna)) {
-                  <td ui-td [style.text-align]="alinhamento(coluna)">
-                    @if (celulas().get(idDe(coluna)); as template) {
+                @for (column of columns(); track idOf(column)) {
+                  <td ui-td [style.text-align]="column.align ?? null">
+                    @if (cells().get(idOf(column)); as template) {
                       <ng-container
                         [ngTemplateOutlet]="template"
                         [ngTemplateOutletContext]="{
-                          $implicit: valor(linha, coluna),
-                          linha: linha,
-                          indice: i,
+                          $implicit: value(row, column),
+                          row: row,
+                          index: i,
                         }"
                       />
                     } @else {
-                      {{ texto(linha, coluna) }}
+                      {{ text(row, column) }}
                     }
                   </td>
                 }
               </tr>
             } @empty {
               <tr ui-tr>
-                <td ui-td class="vazio" [attr.colspan]="colunas().length">
-                  {{ mensagemVazia() }}
+                <td ui-td class="empty" [attr.colspan]="columns().length">
+                  {{ emptyMessage() }}
                 </td>
               </tr>
             }
@@ -179,7 +140,7 @@ const ALINHAMENTO: Record<UiAlinhamento, string> = {
     :host {
       display: block;
     }
-    .vazio {
+    .empty {
       padding: calc(var(--space) * 6) calc(var(--space) * 2);
       color: var(--muted-foreground);
       text-align: center;
@@ -188,53 +149,51 @@ const ALINHAMENTO: Record<UiAlinhamento, string> = {
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UiDataTable<T> {
-  readonly dados = input.required<readonly T[]>();
-  readonly colunas = input.required<readonly UiColuna<T>[]>();
-  /** Mostra linhas de esqueleto no lugar dos dados. */
-  readonly carregando = input(false, { transform: booleanAttribute });
-  /** Quantas linhas de esqueleto mostrar enquanto carrega. */
-  readonly linhasCarregando = input(5);
-  readonly mensagemVazia = input('Nenhum registro encontrado.');
+  readonly data = input.required<readonly T[]>();
+  readonly columns = input.required<readonly UiColumn<T>[]>();
+  /** Shows skeleton rows instead of the data. */
+  readonly loading = input(false, { transform: booleanAttribute });
+  /** How many skeleton rows to show while loading. */
+  readonly loadingRows = input(5);
+  readonly emptyMessage = input('Nenhum registro encontrado.');
   /**
-   * Identidade de cada linha, para o Angular reaproveitar o DOM.
-   * Caminho ('codigo') ou função. Padrão: a propriedade "id"; sem ela, a posição.
+   * Identity of each row, so Angular reuses the DOM.
+   * A path ('code') or a function. Default: the "id" property; without it, the position.
    */
-  readonly rastrearPor = input<Caminho<T> | ((linha: T) => unknown)>();
+  readonly trackBy = input<Path<T> | ((row: T) => unknown)>();
 
-  private readonly templatesCelula = contentChildren(UiCelula);
-  private readonly templatesCabecalho = contentChildren(UiCabecalho);
+  private readonly cellTemplates = contentChildren(UiCell);
+  private readonly headerTemplates = contentChildren(UiColumnHeader);
 
-  protected readonly celulas = computed(
-    () => new Map(this.templatesCelula().map((c) => [c.uiCelula(), c.template])),
+  protected readonly cells = computed(
+    () => new Map(this.cellTemplates().map((c) => [c.uiCell(), c.template])),
   );
-  protected readonly cabecalhos = computed(
-    () => new Map(this.templatesCabecalho().map((c) => [c.uiCabecalho(), c.template])),
+  protected readonly headers = computed(
+    () => new Map(this.headerTemplates().map((c) => [c.uiColumnHeader(), c.template])),
   );
-  protected readonly linhasEsqueleto = computed(() =>
-    Array.from({ length: this.linhasCarregando() }, (_, i) => i),
+  protected readonly skeletonRows = computed(() =>
+    Array.from({ length: this.loadingRows() }, (_, i) => i),
   );
 
-  protected idDe(coluna: UiColuna<T>): string {
-    return coluna.id ?? (coluna.chave as string);
+  protected idOf(column: UiColumn<T>): string {
+    return column.id ?? (column.key as string);
   }
 
-  protected alinhamento(coluna: UiColuna<T>): string | null {
-    return coluna.alinhar ? ALINHAMENTO[coluna.alinhar] : null;
+  protected value(row: T, column: UiColumn<T>): unknown {
+    if (!column.key) return undefined;
+    return readPath(row, column.key);
   }
 
-  protected valor(linha: T, coluna: UiColuna<T>): unknown {
-    return coluna.chave ? lerCaminho(linha, coluna.chave) : undefined;
+  protected text(row: T, column: UiColumn<T>): unknown {
+    const value = this.value(row, column);
+    const format = column.format as ((value: unknown, row: T) => unknown) | undefined;
+    if (format) return format(value, row);
+    return value ?? '';
   }
 
-  protected texto(linha: T, coluna: UiColuna<T>): unknown {
-    const valor = this.valor(linha, coluna);
-    const formatar = coluna.formatar as ((valor: unknown, linha: T) => unknown) | undefined;
-    return formatar ? formatar(valor, linha) : (valor ?? '');
-  }
-
-  protected rastrear(linha: T, indice: number): unknown {
-    const rastrearPor = this.rastrearPor();
-    if (typeof rastrearPor === 'function') return rastrearPor(linha);
-    return lerCaminho(linha, rastrearPor ?? 'id') ?? indice;
+  protected track(row: T, index: number): unknown {
+    const trackBy = this.trackBy();
+    if (typeof trackBy === 'function') return trackBy(row);
+    return readPath(row, trackBy ?? 'id') ?? index;
   }
 }

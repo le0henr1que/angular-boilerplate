@@ -1,20 +1,20 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router, withComponentInputBinding } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { ProdutosApi } from '@features/produtos';
-import { PRODUTOS_TESTE } from '@testing/produtos.fixture';
+import { ProductsApi } from '@features/products';
 import { provideLocalePtBr } from '@testing/locale';
+import { TEST_PRODUCTS } from '@testing/products.fixture';
 import { provideTestAppConfig } from '@testing/test-config';
 import { provideTestQueryClient } from '@testing/test-query-client';
 import { screen } from '@testing-library/angular';
 import { routes } from './app.routes';
 
-/** Testa a navegação de verdade: rotas reais, telas reais, só a API é falsa. */
-describe('Rotas do app', () => {
+/** Tests the real navigation: real routes, real screens, only the API is fake. */
+describe('App routes', () => {
   let harness: RouterTestingHarness;
   const api = {
-    listar: vi.fn().mockResolvedValue(PRODUTOS_TESTE),
-    buscar: vi.fn().mockResolvedValue(PRODUTOS_TESTE[0]),
+    list: vi.fn().mockResolvedValue(TEST_PRODUCTS),
+    get: vi.fn().mockResolvedValue(TEST_PRODUCTS[0]),
   };
 
   beforeEach(async () => {
@@ -23,7 +23,7 @@ describe('Rotas do app', () => {
         provideTestAppConfig(),
         provideTestQueryClient(),
         provideLocalePtBr(),
-        { provide: ProdutosApi, useValue: api },
+        { provide: ProductsApi, useValue: api },
         provideRouter(routes, withComponentInputBinding()),
       ],
     });
@@ -32,30 +32,30 @@ describe('Rotas do app', () => {
 
   const url = () => TestBed.inject(Router).url;
 
-  it('a raiz redireciona para /inicio', async () => {
+  it('the root redirects to /inicio', async () => {
     await harness.navigateByUrl('/');
     expect(url()).toBe('/inicio');
     expect(await screen.findByRole('heading', { name: /Bem-vindo/ })).toBeInTheDocument();
   });
 
-  it('/produtos abre a lista (carregada sob demanda)', async () => {
+  it('/produtos opens the list (lazy loaded)', async () => {
     await harness.navigateByUrl('/produtos');
     expect(screen.getByRole('heading', { name: 'Produtos' })).toBeInTheDocument();
   });
 
-  it('/produtos/:codigo abre o detalhe daquele produto', async () => {
+  it('/produtos/:code opens that product detail', async () => {
     await harness.navigateByUrl('/produtos/HO-1');
     expect(await screen.findByRole('heading', { name: 'HO-1' })).toBeInTheDocument();
-    expect(api.buscar).toHaveBeenCalledWith('HO-1');
+    expect(api.get).toHaveBeenCalledWith('HO-1');
   });
 
-  it('endereço desconhecido mostra a página 404 com link para o início', async () => {
+  it('an unknown address shows the 404 page with a link to the home page', async () => {
     await harness.navigateByUrl('/nao-existe');
     expect(screen.getByRole('heading', { name: 'Página não encontrada' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Voltar para o início' })).toHaveAttribute('href', '/');
   });
 
-  it('define o título da aba para cada página', async () => {
+  it('sets the tab title for each page', async () => {
     await harness.navigateByUrl('/produtos');
     await vi.waitFor(() => expect(document.title).toBe('Produtos'));
     await harness.navigateByUrl('/nao-existe');

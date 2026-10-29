@@ -1,70 +1,73 @@
 import { render, screen, within } from '@testing-library/angular';
-import { lerCaminho } from './caminho';
-import { UiCabecalho, UiCelula, type UiColuna, UiDataTable } from './ui-data-table';
+import { readPath } from './path.utils';
+import { UiCell, UiColumnHeader, UiDataTable } from './ui-data-table';
+import { type UiColumn } from './ui-data-table.types';
 
-interface Pedido {
+interface Order {
   id: number;
-  user: { name: string; endereco: { cidade: string } | null };
+  user: { name: string; address: { city: string } | null };
   total: number;
   status: 'pago' | 'pendente';
 }
 
-const PEDIDOS: Pedido[] = [
-  { id: 1, user: { name: 'Ana', endereco: { cidade: 'Recife' } }, total: 10, status: 'pago' },
-  { id: 2, user: { name: 'Bruno', endereco: null }, total: 25.5, status: 'pendente' },
+const ORDERS: Order[] = [
+  { id: 1, user: { name: 'Ana', address: { city: 'Recife' } }, total: 10, status: 'pago' },
+  { id: 2, user: { name: 'Bruno', address: null }, total: 25.5, status: 'pendente' },
 ];
 
-const COLUNAS: UiColuna<Pedido>[] = [
-  { chave: 'user.name', titulo: 'Cliente' },
-  { chave: 'user.endereco.cidade', titulo: 'Cidade' },
-  { chave: 'total', titulo: 'Total', formatar: (v) => `R$ ${v.toFixed(2)}`, alinhar: 'direita' },
-  { chave: 'status', titulo: 'Status' },
-  { id: 'acoes', titulo: 'Ações' },
+const COLUMNS: UiColumn<Order>[] = [
+  { key: 'user.name', title: 'Cliente' },
+  { key: 'user.address.city', title: 'Cidade' },
+  { key: 'total', title: 'Total', format: (v) => `R$ ${v.toFixed(2)}`, align: 'end' },
+  { key: 'status', title: 'Status' },
+  { id: 'actions', title: 'Ações' },
 ];
 
-const imports = [UiDataTable, UiCelula, UiCabecalho];
+const imports = [UiDataTable, UiCell, UiColumnHeader];
 
-describe('lerCaminho', () => {
-  it('acessa propriedades aninhadas pelo caminho com pontos', () => {
-    expect(lerCaminho({ user: { name: 'Ana' } }, 'user.name')).toBe('Ana');
+describe('readPath', () => {
+  it('reads nested properties by dotted path', () => {
+    expect(readPath({ user: { name: 'Ana' } }, 'user.name')).toBe('Ana');
   });
 
-  it('devolve undefined quando algo no meio do caminho é nulo', () => {
-    expect(lerCaminho({ user: null }, 'user.name')).toBeUndefined();
+  it('returns undefined when something along the path is null', () => {
+    expect(readPath({ user: null }, 'user.name')).toBeUndefined();
   });
 });
 
 describe('UiDataTable', () => {
-  it('monta cabeçalho e linhas a partir das colunas e dos dados', async () => {
-    await render(`<ui-data-table [dados]="dados" [colunas]="colunas" />`, {
+  it('builds the header and rows from the columns and the data', async () => {
+    await render(`<ui-data-table [data]="data" [columns]="columns" />`, {
       imports,
-      componentProperties: { dados: PEDIDOS, colunas: COLUNAS },
+      componentProperties: { data: ORDERS, columns: COLUMNS },
     });
 
-    const titulos = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
-    expect(titulos).toEqual(['Cliente', 'Cidade', 'Total', 'Status', 'Ações']);
+    const titles = screen.getAllByRole('columnheader').map((th) => th.textContent?.trim());
+    expect(titles).toEqual(['Cliente', 'Cidade', 'Total', 'Status', 'Ações']);
 
     const [, ana, bruno] = screen.getAllByRole('row');
-    const celulasAna = within(ana).getAllByRole('cell').map((td) => td.textContent?.trim());
-    expect(celulasAna).toEqual(['Ana', 'Recife', 'R$ 10.00', 'pago', '']);
-    // Endereço nulo no meio do caminho: célula vazia, sem erro.
+    const anaCells = within(ana)
+      .getAllByRole('cell')
+      .map((td) => td.textContent?.trim());
+    expect(anaCells).toEqual(['Ana', 'Recife', 'R$ 10.00', 'pago', '']);
+    // Null address along the path: empty cell, no error.
     expect(within(bruno).getAllByRole('cell')[1]).toHaveTextContent('');
   });
 
-  it('usa o template uiCelula no lugar do valor, com valor, linha e índice', async () => {
+  it('uses the uiCell template instead of the value, with value, row and index', async () => {
     await render(
-      `<ui-data-table [dados]="dados" [colunas]="colunas">
-        <ng-template uiCelula="status" let-valor let-i="indice">
-          <strong>{{ i }}-{{ valor }}</strong>
+      `<ui-data-table [data]="data" [columns]="columns">
+        <ng-template uiCell="status" let-value let-i="index">
+          <strong>{{ i }}-{{ value }}</strong>
         </ng-template>
-        <ng-template uiCelula="acoes" let-linha="linha">
-          <button type="button">Editar {{ linha.user.name }}</button>
+        <ng-template uiCell="actions" let-row="row">
+          <button type="button">Editar {{ row.user.name }}</button>
         </ng-template>
-        <ng-template uiCabecalho="total" let-coluna>
-          <em>{{ coluna.titulo }} (R$)</em>
+        <ng-template uiColumnHeader="total" let-column>
+          <em>{{ column.title }} (R$)</em>
         </ng-template>
       </ui-data-table>`,
-      { imports, componentProperties: { dados: PEDIDOS, colunas: COLUNAS } },
+      { imports, componentProperties: { data: ORDERS, columns: COLUMNS } },
     );
 
     expect(screen.getByText('0-pago').tagName).toBe('STRONG');
@@ -73,21 +76,21 @@ describe('UiDataTable', () => {
     expect(screen.getByRole('columnheader', { name: 'Total (R$)' })).toBeInTheDocument();
   });
 
-  it('mostra a mensagem quando não há dados', async () => {
-    await render(
-      `<ui-data-table [dados]="[]" [colunas]="colunas" mensagemVazia="Sem pedidos." />`,
-      { imports, componentProperties: { colunas: COLUNAS } },
-    );
+  it('shows the message when there is no data', async () => {
+    await render(`<ui-data-table [data]="[]" [columns]="columns" emptyMessage="Sem pedidos." />`, {
+      imports,
+      componentProperties: { columns: COLUMNS },
+    });
     expect(screen.getByRole('cell', { name: 'Sem pedidos.' })).toHaveAttribute('colspan', '5');
   });
 
-  it('mostra linhas de esqueleto enquanto carrega', async () => {
+  it('shows skeleton rows while loading', async () => {
     const { container } = await render(
-      `<ui-data-table [dados]="dados" [colunas]="colunas" carregando [linhasCarregando]="3" />`,
-      { imports, componentProperties: { dados: PEDIDOS, colunas: COLUNAS } },
+      `<ui-data-table [data]="data" [columns]="columns" loading [loadingRows]="3" />`,
+      { imports, componentProperties: { data: ORDERS, columns: COLUMNS } },
     );
     expect(screen.getAllByRole('row')).toHaveLength(4);
-    expect(container.querySelectorAll('ui-skeleton')).toHaveLength(3 * COLUNAS.length);
+    expect(container.querySelectorAll('ui-skeleton')).toHaveLength(3 * COLUMNS.length);
     expect(screen.queryByText('Ana')).not.toBeInTheDocument();
   });
 });

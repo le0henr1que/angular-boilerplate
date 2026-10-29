@@ -1,37 +1,40 @@
-import { ChangeDetectionStrategy, Component, inject, input, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
 import { Auth } from '@core/auth/auth';
-import { PERSONAS_MOCK } from '@core/auth/gateways/personas-mock';
+import { RETURN_TO_PARAM } from '@core/auth/auth.constants';
+import { MOCK_PERSONAS } from '@core/auth/gateways/mock-personas';
+import { DEFAULT_DESTINATION } from '@core/auth/auth.constants';
 import { UiButton } from '@supermercado/ui/button';
 import { UiCardImports } from '@supermercado/ui/card';
 
 /**
- * Login SIMULADO: só existe no modo mock (desenvolvimento), para escolher um usuário de teste.
- * Em produção (bff) a rota /login não existe: o app manda direto para a Microsoft.
+ * SIMULATED login: only exists in mock mode (development), to pick a test user.
+ * In production (bff) the /login route doesn't exist: the app sends straight to Microsoft.
  */
 @Component({
   selector: 'app-login-page',
   imports: [UiButton, UiCardImports],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <section class="pagina estreita">
+    <section class="page narrow">
       <article ui-card>
         <div ui-card-header>
           <h1 ui-card-title>Entrar</h1>
           <p ui-card-description>Login simulado (desenvolvimento): escolha um usuário de teste.</p>
         </div>
 
-        <div ui-card-content class="opcoes">
+        <div ui-card-content class="options">
           @for (persona of personas; track persona.id) {
             <button
               ui-button
               variant="outline"
               type="button"
               class="persona"
-              [disabled]="entrando()"
-              (click)="entrar(persona.id)"
+              [disabled]="signingIn()"
+              (click)="signIn(persona.id)"
             >
-              <strong>{{ persona.usuario.nome }}</strong>
-              <small>{{ persona.descricao }}</small>
+              <strong>{{ persona.user.name }}</strong>
+              <small>{{ persona.description }}</small>
             </button>
           }
         </div>
@@ -39,10 +42,10 @@ import { UiCardImports } from '@supermercado/ui/card';
     </section>
   `,
   styles: `
-    .pagina {
+    .page {
       padding-top: 4rem;
     }
-    .opcoes {
+    .options {
       display: grid;
       gap: 0.5rem;
     }
@@ -59,19 +62,22 @@ import { UiCardImports } from '@supermercado/ui/card';
   `,
 })
 export default class LoginPage {
-  /** ?voltarPara=/produtos/123 (posto pelos guards) chega aqui como input. */
-  readonly voltarPara = input<string>();
-
-  protected readonly personas = PERSONAS_MOCK;
-  protected readonly entrando = signal(false);
+  protected readonly personas = MOCK_PERSONAS;
+  protected readonly signingIn = signal(false);
   readonly #auth = inject(Auth);
+  readonly #route = inject(ActivatedRoute);
 
-  protected async entrar(persona: string): Promise<void> {
-    this.entrando.set(true);
+  protected async signIn(persona: string): Promise<void> {
+    this.signingIn.set(true);
     try {
-      await this.#auth.entrar(this.voltarPara() ?? '/inicio', persona);
+      await this.#auth.signIn(this.#returnTo(), persona);
     } finally {
-      this.entrando.set(false);
+      this.signingIn.set(false);
     }
+  }
+
+  /** ?voltarPara=/produtos/123, set by the guards. */
+  #returnTo(): string {
+    return this.#route.snapshot.queryParamMap.get(RETURN_TO_PARAM) ?? DEFAULT_DESTINATION;
   }
 }

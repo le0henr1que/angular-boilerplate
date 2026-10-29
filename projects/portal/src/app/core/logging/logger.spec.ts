@@ -1,22 +1,26 @@
 import { ErrorHandler } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideTestAppConfig } from '@testing/test-config';
-import { type NivelLog } from './log-config';
+import { type LogLevel } from './logging.enums';
 import { LogErrorHandler } from './log-error-handler';
-import { CHAVE_NIVEL_SALVO, LOG_DESTINOS, Logger, mascarar, type RegistroLog } from './logger';
+import { LOG_TARGETS } from './logging.tokens';
+import { Logger } from './logger';
+import { type LogRecord } from './logging.types';
+import { mask } from './logging.utils';
+import { SAVED_LEVEL_KEY } from './logging.constants';
 
 describe('Logger', () => {
-  let registros: RegistroLog[];
+  let records: LogRecord[];
 
-  function configurar(nivel: NivelLog | 'off') {
-    registros = [];
+  function configure(level: LogLevel | 'off') {
+    records = [];
     TestBed.configureTestingModule({
       providers: [
-        provideTestAppConfig({ log: { nivel, remoto: null } }),
+        provideTestAppConfig({ log: { level, remote: null } }),
         {
-          provide: LOG_DESTINOS,
+          provide: LOG_TARGETS,
           multi: true,
-          useValue: { registrar: (r: RegistroLog) => registros.push(r) },
+          useValue: { write: (r: LogRecord) => records.push(r) },
         },
         { provide: ErrorHandler, useClass: LogErrorHandler },
       ],
@@ -26,80 +30,80 @@ describe('Logger', () => {
 
   afterEach(() => localStorage.clear());
 
-  it('registra só do nível configurado para cima', () => {
-    const log = configurar('warn').com('teste');
+  it('records only from the configured level up', () => {
+    const log = configure('warn').withContext('test');
     log.debug('d');
     log.info('i');
     log.warn('w');
     log.error('e');
-    expect(registros.map((r) => r.nivel)).toEqual(['warn', 'error']);
-    expect(registros[0]).toMatchObject({ contexto: 'teste', mensagem: 'w' });
+    expect(records.map((r) => r.level)).toEqual(['warn', 'error']);
+    expect(records[0]).toMatchObject({ context: 'test', message: 'w' });
   });
 
-  it("'off' não registra nada", () => {
-    configurar('off').com('teste').error('e');
-    expect(registros).toEqual([]);
+  it("'off' records nothing", () => {
+    configure('off').withContext('test').error('e');
+    expect(records).toEqual([]);
   });
 
-  it('mascara campos sensíveis sem alterar o original', () => {
-    const dados = { usuario: 'ana', senha: '123', perfil: { token: 'abc', papel: 'admin' } };
-    configurar('debug').com('teste').info('login', dados);
-    expect(registros[0].dados).toEqual({
-      usuario: 'ana',
-      senha: '***',
-      perfil: { token: '***', papel: 'admin' },
+  it('masks sensitive fields without changing the original', () => {
+    const data = { user: 'ana', password: '123', profile: { token: 'abc', role: 'admin' } };
+    configure('debug').withContext('test').info('login', data);
+    expect(records[0].data).toEqual({
+      user: 'ana',
+      password: '***',
+      profile: { token: '***', role: 'admin' },
     });
-    expect(dados.senha).toBe('123');
-    expect(mascarar([{ Authorization: 'Bearer x' }])).toEqual([{ Authorization: '***' }]);
+    expect(data.password).toBe('123');
+    expect(mask([{ Authorization: 'Bearer x' }])).toEqual([{ Authorization: '***' }]);
   });
 
-  it('erro vira { nome, mensagem, stack } e guarda o original para o console', () => {
-    const erro = new TypeError('quebrou');
-    configurar('debug').com('teste').error('falhou', erro);
-    expect(registros[0].erro).toMatchObject({ nome: 'TypeError', mensagem: 'quebrou' });
-    expect(registros[0].original).toBe(erro);
+  it('an error becomes { name, message, stack } and keeps the original for the console', () => {
+    const error = new TypeError('broke');
+    configure('debug').withContext('test').error('failed', error);
+    expect(records[0].error).toMatchObject({ name: 'TypeError', message: 'broke' });
+    expect(records[0].original).toBe(error);
   });
 
-  it('nível muda em tempo de execução e sobrevive ao F5 (localStorage)', () => {
-    const logger = configurar('warn');
-    logger.definirNivel('debug');
-    logger.com('teste').debug('agora aparece');
-    expect(registros).toHaveLength(1);
-    expect(localStorage.getItem(CHAVE_NIVEL_SALVO)).toBe('debug');
+  it('the level changes at runtime and survives F5 (localStorage)', () => {
+    const logger = configure('warn');
+    logger.setLevel('debug');
+    logger.withContext('test').debug('now it shows');
+    expect(records).toHaveLength(1);
+    expect(localStorage.getItem(SAVED_LEVEL_KEY)).toBe('debug');
 
-    logger.definirNivel(null);
-    expect(logger.nivel()).toBe('warn');
-    expect(localStorage.getItem(CHAVE_NIVEL_SALVO)).toBeNull();
+    logger.setLevel(null);
+    expect(logger.level()).toBe('warn');
+    expect(localStorage.getItem(SAVED_LEVEL_KEY)).toBeNull();
   });
 
-  it('um destino com defeito não impede os outros', () => {
-    registros = [];
+  it('a broken target does not stop the others', () => {
+    records = [];
     TestBed.configureTestingModule({
       providers: [
         provideTestAppConfig(),
         {
-          provide: LOG_DESTINOS,
+          provide: LOG_TARGETS,
           multi: true,
           useValue: {
-            registrar: () => {
+            write: () => {
               throw new Error('x');
             },
           },
         },
         {
-          provide: LOG_DESTINOS,
+          provide: LOG_TARGETS,
           multi: true,
-          useValue: { registrar: (r: RegistroLog) => registros.push(r) },
+          useValue: { write: (r: LogRecord) => records.push(r) },
         },
       ],
     });
-    TestBed.inject(Logger).com('teste').error('e');
-    expect(registros).toHaveLength(1);
+    TestBed.inject(Logger).withContext('test').error('e');
+    expect(records).toHaveLength(1);
   });
 
-  it('erro não tratado passa pelo Logger', () => {
-    configurar('debug');
+  it('an unhandled error goes through the Logger', () => {
+    configure('debug');
     TestBed.inject(ErrorHandler).handleError(new Error('boom'));
-    expect(registros[0]).toMatchObject({ nivel: 'error', contexto: 'erro' });
+    expect(records[0]).toMatchObject({ level: 'error', context: 'error' });
   });
 });

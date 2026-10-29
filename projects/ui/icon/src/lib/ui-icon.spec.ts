@@ -1,14 +1,14 @@
 import { render } from '@testing-library/angular';
-import { ICONES } from './icones';
+import { ICONS } from './icons.constants';
 import { UiIcon } from './ui-icon';
 
 describe('UiIcon', () => {
-  it('desenha um <path> para cada caminho do ícone', async () => {
+  it('draws one <path> per icon path', async () => {
     const { container } = await render(UiIcon, { inputs: { name: 'search' } });
-    expect(container.querySelectorAll('path')).toHaveLength(ICONES.search.length);
+    expect(container.querySelectorAll('path')).toHaveLength(ICONS.search.length);
   });
 
-  it('é decorativo: fica escondido de leitores de tela', async () => {
+  it('is decorative: hidden from screen readers', async () => {
     const { fixture } = await render(UiIcon, { inputs: { name: 'sun' } });
     expect(fixture.nativeElement).toHaveAttribute('aria-hidden', 'true');
   });

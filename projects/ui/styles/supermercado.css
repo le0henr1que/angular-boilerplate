@@ -1,20 +1,20 @@
 /*
- * Tema do supermercado — CSS puro, sem Tailwind nem outra biblioteca de estilo.
+ * Supermarket theme — plain CSS, no Tailwind or any other style library.
  *
- * Os componentes em projects/ui só usam as variáveis abaixo (var(--primary), var(--border)…).
- * Para mudar a identidade visual (ex.: as cores da marca), mude estas variáveis — não precisa
- * mexer em nenhum componente.
+ * The components in projects/ui only use the variables below (var(--primary), var(--border)…).
+ * To change the visual identity (e.g. the brand colors), change these variables — no component
+ * needs to change.
  *
- * Quem usa a biblioteca importa este arquivo no styles.css do app:
+ * Consumers of the library import this file in the app's styles.css:
  *   @import '../../ui/styles/supermercado.css';
  *
- * Breakpoints não ficam aqui (var() não funciona em @media): ver _responsive.scss.
+ * Breakpoints don't live here (var() doesn't work in @media): see _responsive.scss.
  */
 
 :root {
   color-scheme: light;
 
-  /* Tipografia */
+  /* Typography */
   --font-sans:
     -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans',
     sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
@@ -26,7 +26,7 @@
   --text-2xl: 1.5rem;
   --text-3xl: 1.875rem;
 
-  /* Bordas e espaçamento (múltiplos de 0.25rem) */
+  /* Borders and spacing (multiples of 0.25rem) */
   --radius: 0.625rem;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -34,7 +34,7 @@
   --radius-xl: calc(var(--radius) + 4px);
   --space: 0.25rem;
 
-  /* Cores (tema claro) */
+  /* Colors (light theme) */
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -55,7 +55,7 @@
   --transition: 150ms ease;
 }
 
-/* Tema escuro: basta colocar a classe "dark" no <html> (ou num elemento pai). */
+/* Dark theme: just add the "dark" class to <html> (or to a parent element). */
 .dark {
   color-scheme: dark;
   --background: oklch(0.145 0 0);
@@ -76,7 +76,7 @@
   --ring: oklch(0.556 0 0);
 }
 
-/* Base mínima (um "reset" pequeno, feito à mão). */
+/* Minimal base (a small hand-made "reset"). */
 *,
 *::before,
 *::after {
@@ -112,7 +112,7 @@ a {
   outline-offset: 2px;
 }
 
-/* Esconde visualmente, mas mantém para leitores de tela. */
+/* Visually hidden, but kept for screen readers. */
 .sr-only {
   position: absolute;
   width: 1px;

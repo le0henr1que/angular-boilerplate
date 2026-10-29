@@ -1,72 +1,57 @@
-import {
-  HttpContextToken,
-  HttpErrorResponse,
-  type HttpInterceptorFn,
-  HttpResponse,
-} from '@angular/common/http';
+import { HttpErrorResponse, type HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { tap } from 'rxjs';
-import { type NivelLog } from '../log-config';
 import { Logger } from '../logger';
+import { CORRELATION_HEADER } from '../logging.constants';
+import { LOG_LEVEL, type LogLevel } from '../logging.enums';
+import { EXPECTED_STATUSES } from '../logging.tokens';
+import { createId } from '../logging.utils';
 
-/** Header que liga a chamada do front ao log do backend: mesmo id dos dois lados. */
-export const CABECALHO_CORRELACAO = 'X-Correlation-Id';
-
-/**
- * Status que, para ESTA chamada, são resposta normal e não problema (vão como debug).
- * Ex.: o 401 de "quem está logado?" quando ninguém está:
- * `http.get(url, { context: new HttpContext().set(STATUS_ESPERADOS, [401]) })`.
- */
-export const STATUS_ESPERADOS = new HttpContextToken<readonly number[]>(() => []);
-
-export function criarId(): string {
-  return globalThis.crypto?.randomUUID?.() ?? Math.random().toString(36).slice(2);
-}
-
-/** 2xx e status esperados: debug. 4xx: warn. 5xx e rede (status 0): error. */
-function nivelDoStatus(status: number, esperados: readonly number[]): NivelLog {
-  if (status < 400 || esperados.includes(status)) return 'debug';
-  return status === 0 || status >= 500 ? 'error' : 'warn';
+/** 2xx and expected statuses: debug. 4xx: warn. 5xx and network (status 0): error. */
+function levelForStatus(status: number, expected: readonly number[]): LogLevel {
+  if (status < 400 || expected.includes(status)) return LOG_LEVEL.debug;
+  if (status === 0 || status >= 500) return LOG_LEVEL.error;
+  return LOG_LEVEL.warn;
 }
 
 /**
- * Uma linha por chamada HTTP, quando ela termina:
+ * One line per HTTP call, when it finishes:
  * `GET /api/produtos → 200 (812 ms)`.
  *
- * Também manda o `X-Correlation-Id` nas chamadas para o mesmo domínio (URL começando com `/`).
- * Em outro domínio não manda: header novo exigiria liberar CORS no servidor de lá.
+ * Also sends the `X-Correlation-Id` on same-origin calls (URL starting with `/`).
+ * On another domain it doesn't: a new header would require enabling CORS on that server.
  *
- * Registre como o PRIMEIRO interceptor, para medir o tempo total e ver o status final.
+ * Register it as the FIRST interceptor, to measure the total time and see the final status.
  */
 export const logInterceptor: HttpInterceptorFn = (req, next) => {
-  const log = inject(Logger).com('http');
-  const correlacao = criarId();
-  const mesmaOrigem = req.url.startsWith('/') && !req.url.startsWith('//');
-  const comId = mesmaOrigem
-    ? req.clone({ setHeaders: { [CABECALHO_CORRELACAO]: correlacao } })
+  const log = inject(Logger).withContext('http');
+  const correlationId = createId();
+  const sameOrigin = req.url.startsWith('/') && !req.url.startsWith('//');
+  const withId = sameOrigin
+    ? req.clone({ setHeaders: { [CORRELATION_HEADER]: correlationId } })
     : req;
 
-  const inicio = performance.now();
-  const ms = () => Math.round(performance.now() - inicio);
-  const esperados = req.context.get(STATUS_ESPERADOS);
-  const chamada = `${req.method} ${req.url}`;
+  const start = performance.now();
+  const ms = () => Math.round(performance.now() - start);
+  const expected = req.context.get(EXPECTED_STATUSES);
+  const call = `${req.method} ${req.url}`;
 
-  return next(comId).pipe(
+  return next(withId).pipe(
     tap({
-      next: (evento) => {
-        if (evento instanceof HttpResponse) {
-          log.debug(`${chamada} → ${evento.status} (${ms()} ms)`, {
-            correlacao,
+      next: (event) => {
+        if (event instanceof HttpResponse) {
+          log.debug(`${call} → ${event.status} (${ms()} ms)`, {
+            correlationId,
             ...(req.params.keys().length ? { params: req.params.toString() } : {}),
           });
         }
       },
-      error: (erro: unknown) => {
-        const status = erro instanceof HttpErrorResponse ? erro.status : 0;
-        const nivel = nivelDoStatus(status, esperados);
-        log[nivel](`${chamada} → ${status || 'sem resposta'} (${ms()} ms)`, {
-          correlacao,
-          motivo: erro instanceof HttpErrorResponse ? erro.message : String(erro),
+      error: (error: unknown) => {
+        const status = error instanceof HttpErrorResponse ? error.status : 0;
+        const level = levelForStatus(status, expected);
+        log[level](`${call} → ${status || 'no response'} (${ms()} ms)`, {
+          correlationId,
+          reason: error instanceof HttpErrorResponse ? error.message : String(error),
         });
       },
     }),

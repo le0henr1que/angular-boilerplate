@@ -1,44 +1,47 @@
-import type { AppConfig } from '@core/config/app-config';
+import { APP_ENVIRONMENT, AUTH_MODE, MSAL_CACHE } from '@core/config/app-config.enums';
+import { type AppConfig } from '@core/config/app-config.types';
+import { LOG_LEVEL } from '@core/logging/logging.enums';
 import { version } from '../../../../package.json';
 
-// Produção (`ng build`). Tudo aqui vai para o bundle público: nunca coloque segredos.
-// (Client secret, tenant e afins do Azure AD ficam no BACKEND, nunca aqui.)
+// Production (`ng build`). Everything here goes into the public bundle: never put secrets here.
+// (Azure AD client secret, tenant and the like live on the BACKEND, never here.)
 export const environment: AppConfig = {
-  environment: 'production',
+  environment: APP_ENVIRONMENT.production,
   appName: 'Portal Supermercado',
   version,
+  // Single place for the API base URL (see core/http/api-url.interceptor.ts).
   apiUrl: '/api',
   mockApi: false,
   auth: {
-    // Azure AD direto no front (MSAL). Para voltar ao backend com cookie: modo 'bff'.
-    modo: 'msal',
+    // Azure AD in the front end (MSAL). To go back to the cookie backend: mode 'bff'.
+    mode: AUTH_MODE.msal,
     msal: {
-      // Preencha com o registro do app no Entra ID (docs/autenticacao-msal.md).
-      clientId: 'COLOQUE-AQUI-O-CLIENT-ID-DO-FRONT',
-      authority: 'https://login.microsoftonline.com/COLOQUE-AQUI-O-TENANT-ID',
+      // Fill in with the app registration in Entra ID (docs/autenticacao-msal.md).
+      clientId: 'REPLACE-WITH-FRONT-CLIENT-ID',
+      authority: 'https://login.microsoftonline.com/REPLACE-WITH-TENANT-ID',
       redirectUri: '/',
-      apis: [{ url: '/api', scopes: ['api://COLOQUE-AQUI-O-CLIENT-ID-DA-API/acesso'] }],
-      cache: 'sessionStorage',
+      apis: [{ url: '/api', scopes: ['api://REPLACE-WITH-API-CLIENT-ID/acesso'] }],
+      cache: MSAL_CACHE.sessionStorage,
     },
-    // Usados só no modo 'bff'.
-    urls: { login: '/bff/login', logout: '/bff/logout', usuario: '/bff/user' },
-    headerCsrf: { nome: 'X-CSRF', valor: '1' },
+    // Only used in 'bff' mode.
+    urls: { login: '/bff/login', logout: '/bff/logout', user: '/bff/user' },
+    csrfHeader: { name: 'X-CSRF', value: '1' },
   },
   log: {
-    // Só avisos e erros. Para depurar em produção, no console do navegador:
-    // supermercadoLog.nivel('debug')  …  supermercadoLog.nivel(null) para voltar.
-    nivel: 'warn',
-    // Quando o backend tiver o endpoint, troque por: { url: '/api/logs', nivel: 'warn' }
-    remoto: null,
+    // Warnings and errors only. To debug in production, in the browser console:
+    // supermercadoLog.level('debug')  …  supermercadoLog.level(null) to go back.
+    level: LOG_LEVEL.warn,
+    // When the backend has the endpoint, replace with: { url: '/api/logs', level: 'warn' }
+    remote: null,
   },
   features: {
-    // Ligue depois de preencher auth.msal (ver docs/autenticacao-msal.md).
-    autenticacao: false,
-    controleDePapeis: true,
-    areaAdmin: false,
-    fornecedores: true,
+    // Turn on after filling in auth.msal (see docs/autenticacao-msal.md).
+    authentication: false,
+    roleControl: true,
+    adminArea: false,
+    suppliers: true,
     preload: true,
-    transicoesDeTela: true,
-    devtoolsQuery: false,
+    screenTransitions: true,
+    queryDevtools: false,
   },
 };

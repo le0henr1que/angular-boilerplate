@@ -3,25 +3,28 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { TestBed } from '@angular/core/testing';
 import { provideTestAppConfig } from '@testing/test-config';
 import { firstValueFrom } from 'rxjs';
-import { LOG_DESTINOS, type RegistroLog } from '../logger';
-import { CABECALHO_CORRELACAO, logInterceptor, STATUS_ESPERADOS } from './log.interceptor';
+import { LOG_TARGETS } from '../logging.tokens';
+import { type LogRecord } from '../logging.types';
+import { CORRELATION_HEADER } from '../logging.constants';
+import { EXPECTED_STATUSES } from '../logging.tokens';
+import { logInterceptor } from './log.interceptor';
 
 describe('logInterceptor', () => {
-  let registros: RegistroLog[];
+  let records: LogRecord[];
   let http: HttpClient;
   let backend: HttpTestingController;
 
   beforeEach(() => {
-    registros = [];
+    records = [];
     TestBed.configureTestingModule({
       providers: [
         provideTestAppConfig(),
         provideHttpClient(withInterceptors([logInterceptor])),
         provideHttpClientTesting(),
         {
-          provide: LOG_DESTINOS,
+          provide: LOG_TARGETS,
           multi: true,
-          useValue: { registrar: (r: RegistroLog) => registros.push(r) },
+          useValue: { write: (r: LogRecord) => records.push(r) },
         },
       ],
     });
@@ -31,40 +34,40 @@ describe('logInterceptor', () => {
 
   afterEach(() => backend.verify());
 
-  /** Faz a chamada, responde com o status e devolve o registro de log gerado. */
-  async function chamar(url: string, status: number, context?: HttpContext) {
-    const resposta = firstValueFrom(http.get(url, { context })).catch(() => undefined);
+  /** Makes the call, responds with the status and returns the log record it produced. */
+  async function call(url: string, status: number, context?: HttpContext) {
+    const response = firstValueFrom(http.get(url, { context })).catch(() => undefined);
     const req = backend.expectOne(url);
     req.flush(status < 400 ? {} : null, { status, statusText: 'x' });
-    await resposta;
-    return { req: req.request, registro: registros.at(-1)! };
+    await response;
+    return { req: req.request, record: records.at(-1)! };
   }
 
-  it('sucesso: debug com método, url, status e duração', async () => {
-    const { registro } = await chamar('/api/produtos', 200);
-    expect(registro).toMatchObject({ nivel: 'debug', contexto: 'http' });
-    expect(registro.mensagem).toMatch(/^GET \/api\/produtos → 200 \(\d+ ms\)$/);
+  it('success: debug with method, url, status and duration', async () => {
+    const { record } = await call('/api/produtos', 200);
+    expect(record).toMatchObject({ level: 'debug', context: 'http' });
+    expect(record.message).toMatch(/^GET \/api\/produtos → 200 \(\d+ ms\)$/);
   });
 
-  it('4xx é warn, 5xx é error', async () => {
-    expect((await chamar('/api/a', 404)).registro.nivel).toBe('warn');
-    expect((await chamar('/api/b', 503)).registro.nivel).toBe('error');
+  it('4xx is warn, 5xx is error', async () => {
+    expect((await call('/api/a', 404)).record.level).toBe('warn');
+    expect((await call('/api/b', 503)).record.level).toBe('error');
   });
 
-  it('status esperado pela chamada vira debug', async () => {
-    const context = new HttpContext().set(STATUS_ESPERADOS, [401]);
-    expect((await chamar('/bff/user', 401, context)).registro.nivel).toBe('debug');
+  it('a status expected by the call becomes debug', async () => {
+    const context = new HttpContext().set(EXPECTED_STATUSES, [401]);
+    expect((await call('/bff/user', 401, context)).record.level).toBe('debug');
   });
 
-  it('manda o X-Correlation-Id no mesmo domínio e loga o mesmo id', async () => {
-    const { req, registro } = await chamar('/api/produtos', 200);
-    const id = req.headers.get(CABECALHO_CORRELACAO);
+  it('sends the X-Correlation-Id on the same domain and logs the same id', async () => {
+    const { req, record } = await call('/api/produtos', 200);
+    const id = req.headers.get(CORRELATION_HEADER);
     expect(id).toBeTruthy();
-    expect(registro.dados).toMatchObject({ correlacao: id });
+    expect(record.data).toMatchObject({ correlationId: id });
   });
 
-  it('não manda o header para outro domínio (evita CORS)', async () => {
-    const { req } = await chamar('https://viacep.com.br/ws/01001000/json/', 200);
-    expect(req.headers.has(CABECALHO_CORRELACAO)).toBe(false);
+  it('does not send the header to another domain (avoids CORS)', async () => {
+    const { req } = await call('https://viacep.com.br/ws/01001000/json/', 200);
+    expect(req.headers.has(CORRELATION_HEADER)).toBe(false);
   });
 });
