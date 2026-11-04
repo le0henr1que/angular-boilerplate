@@ -9,6 +9,8 @@ import {
   forwardRef,
   inject,
   input,
+  linkedSignal,
+  untracked,
 } from '@angular/core';
 import { type Params } from '@angular/router';
 import { UiAlertImports } from '@supermercado/ui/alert';
@@ -27,6 +29,7 @@ import { injectSorting } from './hooks/inject-sorting';
 import { injectUrlParams } from './hooks/inject-url-params';
 import { LIST_TABLE_CONFIG, LIST_TABLE_CONTEXT, LIST_TABLE_LOGGER } from './list-table.tokens';
 import { LIST_TABLE_ICON, NO_FILTERS } from './models/list-table.constants';
+import { LIST_TABLE_VARIANT, type ListTableVariant } from './models/list-table.enums';
 import {
   type ApplyOptions,
   type ListTableColumn,
@@ -37,6 +40,7 @@ import {
 } from './models/list-table.types';
 import { type UrlField, type UrlFields } from './models/url-field.types';
 import { columnId } from './utils/column.utils';
+import { uniqueId } from './utils/unique-id.utils';
 import { fieldToParam, readField } from './utils/url-field.utils';
 
 /**
@@ -53,6 +57,8 @@ import { fieldToParam, readField } from './utils/url-field.utils';
  *   </app-list-table>
  *
  * Turning parts off: [search]="false", [sorting]="false", [pagination]="false".
+ * Inside a card (heading + search in the header, compact footer):
+ *   <app-list-table variant="card" heading="Fornecedores" ...>
  * State lives in the URL (?q=&page=&pageSize=&sortBy=&sortDirection= + filters): reloading or
  * sharing the link keeps everything, and "back" undoes the last change.
  *
@@ -74,6 +80,7 @@ import { fieldToParam, readField } from './utils/url-field.utils';
   // Projected filters (children) inject this context to read and write their values.
   providers: [{ provide: LIST_TABLE_CONTEXT, useExisting: forwardRef(() => ListTable) }],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.card]': 'isCard()' },
   templateUrl: './list-table.html',
   styleUrl: './list-table.scss',
 })
@@ -99,6 +106,14 @@ export class ListTable<T, F extends object = Record<never, never>> implements Li
   readonly errorTitle = input(this.texts.errorTitle);
   /** Identity of each row (forwarded to ui-data-table). */
   readonly trackBy = input<Path<T> | ((row: T) => unknown)>();
+  /** Layout: plain (stacked on the page) or card (see models/list-table.enums.ts). */
+  readonly variant = input<ListTableVariant>(LIST_TABLE_VARIANT.plain);
+  /** Card title (card variant only). */
+  readonly heading = input<string>();
+
+  protected readonly isCard = computed(() => this.variant() === LIST_TABLE_VARIANT.card);
+  protected readonly filtersIcon = LIST_TABLE_ICON.filters;
+  protected readonly filtersPanelId = uniqueId('list-table-filters');
 
   // ── The screen's templates, forwarded to ui-data-table (it can't see them through <ng-content>) ──
   protected readonly cells = contentChildren(UiCell);
@@ -150,6 +165,22 @@ export class ListTable<T, F extends object = Record<never, never>> implements Li
   protected readonly query = injectListQuery(this.source, this.request);
 
   readonly hasFilter = computed(() => this.filtersState.active() || this.searchState.active());
+
+  /** Card variant: the specific filters live in a panel under the header, opened by a button. */
+  protected readonly hasFilterFields = this.filtersState.hasFields;
+  protected readonly activeFilterCount = this.filtersState.activeCount;
+  /**
+   * Starts open when the URL already brings filters, so the user sees what is applied. Linked to
+   * the `filters` input (only set after the constructor); later filter changes don't toggle it.
+   */
+  protected readonly filtersOpen = linkedSignal({
+    source: this.filters,
+    computation: () => untracked(() => this.filtersState.active()),
+  });
+
+  protected toggleFilters() {
+    this.filtersOpen.update((open) => !open);
+  }
 
   constructor() {
     // Runs again whenever the request changes (filter, search, page, sort).

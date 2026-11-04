@@ -71,7 +71,7 @@ export class UiColumnHeader {
   selector: 'ui-data-table',
   imports: [NgTemplateOutlet, UiTableImports, UiSkeleton],
   template: `
-    <div ui-table-container>
+    <div ui-table-container [flush]="flush()">
       <table ui-table>
         <thead ui-thead>
           <tr ui-tr>
@@ -156,6 +156,8 @@ export class UiDataTable<T> {
   /** How many skeleton rows to show while loading. */
   readonly loadingRows = input(5);
   readonly emptyMessage = input('Nenhum registro encontrado.');
+  /** Edge to edge, without its own border: for a table inside a card (see ui-table-container). */
+  readonly flush = input(false, { transform: booleanAttribute });
   /**
    * Identity of each row, so Angular reuses the DOM.
    * A path ('code') or a function. Default: the "id" property; without it, the position.

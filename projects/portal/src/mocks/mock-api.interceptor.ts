@@ -29,6 +29,16 @@ import {
   toStatusFilter,
   ALL_STATUSES,
 } from '@features/products';
+import {
+  ALL_REGISTRATION_STATUSES,
+  CATEGORIES_ENDPOINT,
+  type CategoryResponse,
+  DEFAULT_PAGE_SIZE as REGISTRATION_DEFAULT_PAGE_SIZE,
+  REGISTRATION_PARAMS,
+  type SupplierResponse,
+  SUPPLIERS_ENDPOINT,
+  toRegistrationStatusFilter,
+} from '@features/suppliers';
 import { FIRST_PAGE, SORT_DIRECTION, TRUE_PARAM } from '@shared/list-table';
 import { readPath } from '@supermercado/ui/data-table';
 import { delay, of, throwError } from 'rxjs';
@@ -37,6 +47,7 @@ import { type PagedResponse, type PagingParams } from './mock-api.types';
 import { ECOSYSTEM_DB } from './ecosystem.db';
 import { readMockSession } from './mock-session';
 import { PRODUCTS_DB } from './products.db';
+import { CATEGORIES_DB, SUPPLIERS_DB } from './registration.db';
 
 /** Simulated latency, so the loading states and the cache effect are visible. */
 const LATENCY_MS = 800;
@@ -142,6 +153,33 @@ function listEcosystem(params: HttpParams): EcosystemResponse {
   return toPage(filtered, params, ECOSYSTEM_PARAMS, ECOSYSTEM_DEFAULT_PAGE_SIZE);
 }
 
+/** GET /fornecedores: filters by term (name, CNPJ or city) and status. */
+function listSuppliers(params: HttpParams): SupplierResponse {
+  const term = normalize(params.get(REGISTRATION_PARAMS.term) ?? '');
+  const status = toRegistrationStatusFilter(params.get(REGISTRATION_PARAMS.status));
+  const filtered = SUPPLIERS_DB.filter(
+    (supplier) =>
+      (!term ||
+        normalize(`${supplier.name} ${supplier.document} ${supplier.location.city}`).includes(
+          term,
+        )) &&
+      (status === ALL_REGISTRATION_STATUSES || supplier.status === status),
+  );
+  return toPage(filtered, params, REGISTRATION_PARAMS, REGISTRATION_DEFAULT_PAGE_SIZE);
+}
+
+/** GET /categorias: filters by term (name) and status. */
+function listCategories(params: HttpParams): CategoryResponse {
+  const term = normalize(params.get(REGISTRATION_PARAMS.term) ?? '');
+  const status = toRegistrationStatusFilter(params.get(REGISTRATION_PARAMS.status));
+  const filtered = CATEGORIES_DB.filter(
+    (category) =>
+      (!term || normalize(category.name).includes(term)) &&
+      (status === ALL_REGISTRATION_STATUSES || category.status === status),
+  );
+  return toPage(filtered, params, REGISTRATION_PARAMS, REGISTRATION_DEFAULT_PAGE_SIZE);
+}
+
 /**
  * Mock API to develop without a backend. Only registered when `mockApi: true`
  * in the environment (see app.config.ts). Answers as the real REST API would:
@@ -150,6 +188,8 @@ function listEcosystem(params: HttpParams): EcosystemResponse {
  *   GET {apiUrl}/produtos/:code
  *   GET {apiUrl}/catalogo?q=text&categoria=Bebidas&estoqueBaixo=true&pagina=2&porPagina=10&ordenarPor=price&direcao=desc
  *   GET {apiUrl}/ecossistema?q=text&tipo=logistics&ativos=true&pagina=1&porPagina=10&ordenarPor=name&direcao=asc
+ *   GET {apiUrl}/fornecedores?q=text&situacao=active&pagina=1&porPagina=10&ordenarPor=name&direcao=asc
+ *   GET {apiUrl}/categorias?q=text&situacao=pending&pagina=1&porPagina=10&ordenarPor=productCount&direcao=desc
  */
 export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
   const { apiUrl, auth, features } = inject(APP_CONFIG);
@@ -179,6 +219,8 @@ export const mockApiInterceptor: HttpInterceptorFn = (req, next) => {
 
   if (route === CATALOG_ENDPOINT) return respond(listCatalog(req.params));
   if (route === ECOSYSTEM_ENDPOINT) return respond(listEcosystem(req.params));
+  if (route === SUPPLIERS_ENDPOINT) return respond(listSuppliers(req.params));
+  if (route === CATEGORIES_ENDPOINT) return respond(listCategories(req.params));
 
   const detail = route.match(new RegExp(`^${PRODUCTS_ENDPOINT}/([^/]+)$`));
   if (detail) {

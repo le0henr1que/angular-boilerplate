@@ -93,6 +93,87 @@ class Host {
   readonly search = signal(true);
 }
 
+/** Same listing, in the card variant. */
+@Component({
+  imports: [ListTableImports],
+  template: `
+    <app-list-table
+      variant="card"
+      heading="Pedidos"
+      [source]="source"
+      [columns]="columns"
+      [filters]="filters"
+    >
+      <app-list-table-options-filter
+        label="Status"
+        allLabel="Todos"
+        [filter]="filters.status"
+        [options]="status"
+      />
+      <app-list-table-boolean-filter label="Urgente" [filter]="filters.urgent" />
+    </app-list-table>
+  `,
+})
+class CardHost {
+  readonly source: ListTableSource<Order, Filters> = {
+    key: ['card-orders'],
+    fetch: () => of({ items: ORDERS, total: 25, totalPages: 3 }),
+  };
+  readonly columns = COLUMNS;
+  readonly filters = FILTERS;
+  readonly status = STATUS;
+}
+
+describe('ListTable (card variant)', () => {
+  const user = userEvent.setup();
+
+  async function open(url = '/orders') {
+    TestBed.configureTestingModule({
+      providers: [
+        provideTestQueryClient(),
+        provideRouter([{ path: 'orders', component: CardHost }]),
+      ],
+    });
+    const harness = await RouterTestingHarness.create();
+    await harness.navigateByUrl(url, CardHost);
+    await screen.findByText('Ana');
+  }
+
+  const url = () => TestBed.inject(Router).url;
+  const filtersButton = () => screen.getByRole('button', { name: /Filtros/ });
+
+  it('shows the heading, the search and the filters behind a button', async () => {
+    await open();
+    expect(screen.getByRole('heading', { name: 'Pedidos' })).toBeInTheDocument();
+    expect(screen.getByRole('searchbox', { name: 'Pesquisar' })).toBeInTheDocument();
+    expect(filtersButton()).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByLabelText('Status')).not.toBeVisible();
+
+    await user.click(filtersButton());
+    expect(filtersButton()).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText('Status')).toBeVisible();
+    await user.selectOptions(screen.getByLabelText('Status'), 'paid');
+    await vi.waitFor(() => expect(url()).toBe('/orders?status=paid'));
+    expect(filtersButton()).toHaveTextContent('1 filtro(s) ativo(s)');
+  });
+
+  it('starts with the panel open when the URL brings filters', async () => {
+    await open('/orders?status=paid&urgent=true');
+    expect(filtersButton()).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByLabelText('Urgente')).toBeChecked();
+    expect(filtersButton()).toHaveTextContent('2 filtro(s) ativo(s)');
+  });
+
+  it('uses the compact pagination in the footer', async () => {
+    await open();
+    expect(screen.getByRole('navigation', { name: 'Paginação' })).toHaveTextContent(
+      'Página 1 de 3',
+    );
+    await user.click(screen.getByRole('button', { name: 'Última página' }));
+    await vi.waitFor(() => expect(url()).toBe('/orders?page=3'));
+  });
+});
+
 describe('ListTable', () => {
   const user = userEvent.setup();
   let harness: RouterTestingHarness;

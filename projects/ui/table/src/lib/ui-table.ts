@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { booleanAttribute, ChangeDetectionStrategy, Component, input } from '@angular/core';
 
 /*
  * Native table (<table>) with its own look. Each part styles itself:
@@ -9,6 +9,9 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
  *       <tbody ui-tbody><tr ui-tr><td ui-td>Ana</td></tr></tbody>
  *     </table>
  *   </div>
+ *
+ * Inside a card, <div ui-table-container flush>: no border of its own, edge to edge, shaded
+ * header row and the first/last columns aligned with the card's padding.
  */
 
 @Component({
@@ -22,10 +25,21 @@ import { ChangeDetectionStrategy, Component } from '@angular/core';
       border: 1px solid var(--border);
       border-radius: var(--radius-lg);
     }
+    /* The cells read these variables (CSS variables cross the component boundaries). */
+    :host(.flush) {
+      --table-head-background: var(--muted);
+      --table-edge-padding: calc(var(--space) * 6);
+      border-width: 1px 0;
+      border-radius: 0;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.flush]': 'flush()' },
 })
-export class UiTableContainer {}
+export class UiTableContainer {
+  /** Edge to edge, for use inside a card. */
+  readonly flush = input(false, { transform: booleanAttribute });
+}
 
 @Component({
   selector: 'table[ui-table]',
@@ -86,10 +100,17 @@ export class UiTr {}
     :host {
       height: 2.5rem;
       padding: 0 calc(var(--space) * 2);
+      background: var(--table-head-background, transparent);
       font-weight: 500;
       text-align: start;
       white-space: nowrap;
       vertical-align: middle;
+    }
+    :host(:first-child) {
+      padding-left: var(--table-edge-padding, calc(var(--space) * 2));
+    }
+    :host(:last-child) {
+      padding-right: var(--table-edge-padding, calc(var(--space) * 2));
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -103,6 +124,12 @@ export class UiTh {}
     :host {
       padding: calc(var(--space) * 2);
       vertical-align: middle;
+    }
+    :host(:first-child) {
+      padding-left: var(--table-edge-padding, calc(var(--space) * 2));
+    }
+    :host(:last-child) {
+      padding-right: var(--table-edge-padding, calc(var(--space) * 2));
     }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,

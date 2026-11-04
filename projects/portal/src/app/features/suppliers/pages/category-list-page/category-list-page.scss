@@ -1,0 +1,18 @@
+@use 'responsive' as *;
+
+@include b2b-breakpoint('md') {
+  .status-field {
+    width: 10rem;
+  }
+}
+
+/* ── Cells (the uiCell ng-templates belong to this page) ── */
+.name {
+  font-weight: 500;
+}
+
+.amount,
+.date {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}

@@ -1,0 +1,8 @@
+/* Grid without gap: the empty <router-outlet> takes no space; the tabs set the distance. */
+.tabbed {
+  display: grid;
+}
+
+.tabbed nav {
+  margin-bottom: 1.25rem;
+}

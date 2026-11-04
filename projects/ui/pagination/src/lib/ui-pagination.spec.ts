@@ -43,3 +43,35 @@ describe('UiPagination', () => {
     expect(pageChange).toHaveBeenCalledWith(2);
   });
 });
+
+describe('UiPagination (compact)', () => {
+  async function renderCompact(page: number, totalPages: number) {
+    const pageChange = vi.fn();
+    await render(UiPagination, {
+      inputs: { page, totalPages, variant: 'compact' },
+      on: { pageChange },
+    });
+    return pageChange;
+  }
+
+  it('shows the position instead of the page numbers', async () => {
+    await renderCompact(2, 5);
+    expect(screen.getByRole('navigation')).toHaveTextContent('Página 2 de 5');
+    expect(screen.queryByRole('button', { name: 'Página 2' })).not.toBeInTheDocument();
+  });
+
+  it('jumps to the first, previous, next and last page', async () => {
+    const pageChange = await renderCompact(3, 5);
+    await userEvent.click(screen.getByRole('button', { name: 'Primeira página' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Página anterior' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Próxima página' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Última página' }));
+    expect(pageChange.mock.calls).toEqual([[1], [2], [4], [5]]);
+  });
+
+  it('disables the buttons at the ends and reads 1 of 1 without results', async () => {
+    await renderCompact(1, 0);
+    expect(screen.getByRole('navigation')).toHaveTextContent('Página 1 de 1');
+    for (const button of screen.getAllByRole('button')) expect(button).toBeDisabled();
+  });
+});

@@ -1,37 +1,46 @@
-<!-- Native form: search runs while typing (debounced); Enter applies right away. -->
-<form role="search" class="filters" (submit)="onSubmit($event)">
+<!--
+  The parts are declared once (ng-template) and placed according to the variant:
+  plain → toolbar (search + filters), count, results, footer stacked on the page;
+  card  → header (heading + count | search + "Filtros" button), collapsible filters panel,
+          results edge to edge, footer.
+-->
+
+<!-- The screen's specific filters (children). A single <ng-content>, placed by either variant. -->
+<ng-template #filterControls>
+  <ng-content />
+</ng-template>
+
+<ng-template #searchField>
   @if (search()) {
     <app-list-table-search
       class="search"
       [text]="searchState.text()"
       [label]="texts.search"
       [placeholder]="searchPlaceholder()"
+      [hideLabel]="isCard()"
       (textChange)="searchState.setText($event)"
     />
   }
+</ng-template>
 
-  <!-- The screen's specific filters (children). -->
-  <ng-content />
-
+<ng-template #clearButton>
   @if (hasFilter()) {
     <button ui-button variant="ghost" type="button" (click)="clearFilters()">
       {{ texts.clear }}
     </button>
   }
-</form>
+</ng-template>
 
-@if (query.isError()) {
-  <div ui-alert variant="destructive">
-    <ui-icon [name]="errorIcon" />
-    <h2 ui-alert-title>{{ errorTitle() }}</h2>
-    <div ui-alert-description>
-      <p>{{ texts.errorDescription }}</p>
-      <button ui-button variant="outline" size="sm" type="button" class="retry" (click)="reload()">
-        {{ texts.retry }}
-      </button>
-    </div>
-  </div>
-} @else {
+<!-- Native form: search runs while typing (debounced); Enter applies right away. -->
+<ng-template #toolbar>
+  <form role="search" class="filters" (submit)="onSubmit($event)">
+    <ng-container [ngTemplateOutlet]="searchField" />
+    <ng-container [ngTemplateOutlet]="filterControls" />
+    <ng-container [ngTemplateOutlet]="clearButton" />
+  </form>
+</ng-template>
+
+<ng-template #count>
   <div class="count" aria-live="polite">
     @if (query.data(); as result) {
       {{ texts.total(result.total) }}
@@ -42,57 +51,140 @@
       <span>{{ texts.refreshing }}</span>
     }
   </div>
+</ng-template>
 
-  <!-- isPlaceholderData: still the previous result, until the new one arrives (keepPreviousData). -->
-  <ui-data-table
-    [data]="query.data()?.items ?? []"
-    [columns]="columns()"
-    [loading]="query.isPending()"
-    [loadingRows]="paginationState.state()?.pageSize ?? pageSizeOptions()[0]"
-    [emptyMessage]="emptyMessage()"
-    [trackBy]="trackBy()"
-    [class.stale]="query.isPlaceholderData()"
-  >
-    @for (column of sortableColumns(); track column.id) {
-      <ng-template [uiColumnHeader]="column.id">
-        <app-list-table-sort-header
-          [heading]="column.heading"
-          [field]="column.id"
-          [sort]="sortingState.state()"
-          [label]="texts.sortBy(column.heading)"
-          (toggleSort)="sortBy(column.id)"
-        />
-      </ng-template>
-    }
-    @for (header of headers(); track header.uiColumnHeader()) {
-      <ng-template [uiColumnHeader]="header.uiColumnHeader()" let-column>
-        <ng-container
-          [ngTemplateOutlet]="header.template"
-          [ngTemplateOutletContext]="{ $implicit: column }"
-        />
-      </ng-template>
-    }
-    @for (cell of cells(); track cell.uiCell()) {
-      <ng-template [uiCell]="cell.uiCell()" let-value let-row="row" let-index="index">
-        <ng-container
-          [ngTemplateOutlet]="cell.template"
-          [ngTemplateOutletContext]="{ $implicit: value, row: row, index: index }"
-        />
-      </ng-template>
-    }
-  </ui-data-table>
+<ng-template #results>
+  @if (query.isError()) {
+    <div ui-alert variant="destructive" class="error">
+      <ui-icon [name]="errorIcon" />
+      <h2 ui-alert-title>{{ errorTitle() }}</h2>
+      <div ui-alert-description>
+        <p>{{ texts.errorDescription }}</p>
+        <button ui-button variant="outline" size="sm" type="button" class="retry" (click)="reload()">
+          {{ texts.retry }}
+        </button>
+      </div>
+    </div>
+  } @else {
+    <!-- isPlaceholderData: still the previous result, until the new one arrives (keepPreviousData). -->
+    <ui-data-table
+      [data]="query.data()?.items ?? []"
+      [columns]="columns()"
+      [loading]="query.isPending()"
+      [loadingRows]="paginationState.state()?.pageSize ?? pageSizeOptions()[0]"
+      [emptyMessage]="emptyMessage()"
+      [trackBy]="trackBy()"
+      [flush]="isCard()"
+      [class.stale]="query.isPlaceholderData()"
+    >
+      @for (column of sortableColumns(); track column.id) {
+        <ng-template [uiColumnHeader]="column.id">
+          <app-list-table-sort-header
+            [heading]="column.heading"
+            [field]="column.id"
+            [sort]="sortingState.state()"
+            [label]="texts.sortBy(column.heading)"
+            (toggleSort)="sortBy(column.id)"
+          />
+        </ng-template>
+      }
+      @for (header of headers(); track header.uiColumnHeader()) {
+        <ng-template [uiColumnHeader]="header.uiColumnHeader()" let-column>
+          <ng-container
+            [ngTemplateOutlet]="header.template"
+            [ngTemplateOutletContext]="{ $implicit: column }"
+          />
+        </ng-template>
+      }
+      @for (cell of cells(); track cell.uiCell()) {
+        <ng-template [uiCell]="cell.uiCell()" let-value let-row="row" let-index="index">
+          <ng-container
+            [ngTemplateOutlet]="cell.template"
+            [ngTemplateOutletContext]="{ $implicit: value, row: row, index: index }"
+          />
+        </ng-template>
+      }
+    </ui-data-table>
+  }
+</ng-template>
 
+<ng-template #footer>
   @if (paginationState.state(); as currentPagination) {
     @if (query.data(); as result) {
       <app-list-table-footer
+        class="footer"
         [page]="currentPagination.page"
         [totalPages]="result.totalPages"
         [pageSize]="currentPagination.pageSize"
         [pageSizeOptions]="pageSizeOptions()"
         [pageSizeLabel]="texts.pageSize"
+        [variant]="variant()"
         (pageChange)="goToPage($event)"
         (pageSizeChange)="changePageSize($event)"
       />
     }
+  }
+</ng-template>
+
+@if (isCard()) {
+  <header class="card-header">
+    <div class="heading">
+      @if (heading(); as title) {
+        <h2 class="title">{{ title }}</h2>
+      }
+      <ng-container [ngTemplateOutlet]="count" />
+    </div>
+
+    <div class="header-actions">
+      <form role="search" class="card-search" (submit)="onSubmit($event)">
+        <ng-container [ngTemplateOutlet]="searchField" />
+      </form>
+
+      @if (hasFilterFields()) {
+        <button
+          ui-button
+          variant="outline"
+          type="button"
+          class="filters-toggle"
+          [attr.aria-expanded]="filtersOpen()"
+          [attr.aria-controls]="filtersPanelId"
+          (click)="toggleFilters()"
+        >
+          <ui-icon [name]="filtersIcon" />
+          {{ texts.filters }}
+          @if (activeFilterCount(); as active) {
+            <span class="filters-count" aria-hidden="true">{{ active }}</span>
+            <span class="sr-only">{{ texts.activeFilters(active) }}</span>
+          }
+        </button>
+      }
+    </div>
+  </header>
+
+  <!-- Always in the DOM (hidden when closed): the projected filters keep their state. -->
+  @if (hasFilterFields()) {
+    <div
+      class="filters-panel"
+      role="group"
+      [id]="filtersPanelId"
+      [attr.aria-label]="texts.filters"
+      [hidden]="!filtersOpen()"
+    >
+      <ng-container [ngTemplateOutlet]="filterControls" />
+      <ng-container [ngTemplateOutlet]="clearButton" />
+    </div>
+  }
+  <ng-container [ngTemplateOutlet]="results" />
+  @if (!query.isError()) {
+    <ng-container [ngTemplateOutlet]="footer" />
+  }
+} @else {
+  <ng-container [ngTemplateOutlet]="toolbar" />
+  @if (!query.isError()) {
+    <ng-container [ngTemplateOutlet]="count" />
+  }
+  <ng-container [ngTemplateOutlet]="results" />
+  @if (!query.isError()) {
+    <ng-container [ngTemplateOutlet]="footer" />
   }
 }

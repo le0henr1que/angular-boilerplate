@@ -22,12 +22,20 @@ export function injectFilters<F extends object>(fields: () => UrlFields<F>, url:
     { equal: (a, b) => keys().every((key) => valuesEqual(field(key), a[key], b[key])) },
   );
 
+  /** How many filters differ from their default. */
+  const activeCount = computed(
+    () =>
+      keys().filter((key) => !valuesEqual(field(key), values()[key], field(key).defaultValue))
+        .length,
+  );
+
   return {
     values,
+    activeCount,
     /** Some filter differs from its default. */
-    active: computed(() =>
-      keys().some((key) => !valuesEqual(field(key), values()[key], field(key).defaultValue)),
-    ),
+    active: computed(() => activeCount() > 0),
+    /** The listing has specific filters at all (not only search, sorting and pagination). */
+    hasFields: computed(() => keys().length > 0),
     /** Parameters for the given keys only. */
     toParams(changes: Partial<F>): Params {
       return Object.fromEntries(

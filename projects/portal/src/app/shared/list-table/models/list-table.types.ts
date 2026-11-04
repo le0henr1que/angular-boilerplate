@@ -100,6 +100,10 @@ export interface ListTableTexts {
   search: string;
   searchPlaceholder: string;
   clear: string;
+  /** Button that opens the filters panel (card variant). */
+  filters: string;
+  /** Screen reader text of the active filters counter on that button. */
+  activeFilters: (count: number) => string;
   pageSize: string;
   refreshing: string;
   empty: string;
