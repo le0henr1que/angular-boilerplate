@@ -60,7 +60,14 @@
       <h2 ui-alert-title>{{ errorTitle() }}</h2>
       <div ui-alert-description>
         <p>{{ texts.errorDescription }}</p>
-        <button ui-button variant="outline" size="sm" type="button" class="retry" (click)="reload()">
+        <button
+          ui-button
+          variant="outline"
+          size="sm"
+          type="button"
+          class="retry"
+          (click)="reload()"
+        >
           {{ texts.retry }}
         </button>
       </div>
