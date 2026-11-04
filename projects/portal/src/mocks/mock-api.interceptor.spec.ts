@@ -9,12 +9,14 @@ import { TestBed } from '@angular/core/testing';
 import { type CatalogResponse } from '@features/catalog';
 import { type EcosystemResponse } from '@features/ecosystem';
 import { type Product } from '@features/products';
+import { type CategoryResponse, type SupplierResponse } from '@features/suppliers';
 import { provideTestAppConfig } from '@testing/test-config';
 import { firstValueFrom } from 'rxjs';
 import { CATALOG_DB } from './catalog.db';
 import { ECOSYSTEM_DB } from './ecosystem.db';
 import { mockApiInterceptor } from './mock-api.interceptor';
 import { PRODUCTS_DB } from './products.db';
+import { CATEGORIES_DB, SUPPLIERS_DB } from './registration.db';
 
 describe('mockApiInterceptor (mock API)', () => {
   let http: HttpClient;
@@ -148,6 +150,32 @@ describe('mockApiInterceptor (mock API)', () => {
     });
     expect(page2).toMatchObject({ page: 2, pageSize: 10, total: ECOSYSTEM_DB.length });
     expect(page2.items).toEqual(ECOSYSTEM_DB.slice(10, 20));
+  });
+
+  it('filters suppliers by status and by CNPJ or city', async () => {
+    const pending = await get<SupplierResponse>('/api/fornecedores', {
+      situacao: 'pending',
+      porPagina: '100',
+    });
+    expect(pending.total).toBeGreaterThan(0);
+    expect(pending.total).toBeLessThan(SUPPLIERS_DB.length);
+    expect(pending.items.every((s) => s.status === 'pending')).toBe(true);
+
+    const [first] = SUPPLIERS_DB;
+    const byDocument = await get<SupplierResponse>('/api/fornecedores', { q: first.document });
+    expect(byDocument.items).toEqual([first]);
+  });
+
+  it('sorts and paginates the categories on the server', async () => {
+    const response = await get<CategoryResponse>('/api/categorias', {
+      ordenarPor: 'productCount',
+      direcao: 'desc',
+      pagina: '2',
+      porPagina: '10',
+    });
+    expect(response).toMatchObject({ page: 2, total: CATEGORIES_DB.length, totalPages: 2 });
+    const counts = CATEGORIES_DB.map((c) => c.productCount).sort((a, b) => b - a);
+    expect(response.items.map((c) => c.productCount)).toEqual(counts.slice(10));
   });
 
   it('answers 404 for a product that does not exist', async () => {

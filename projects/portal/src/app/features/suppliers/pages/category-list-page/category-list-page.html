@@ -1,0 +1,53 @@
+<app-list-table
+  variant="card"
+  heading="Categorias"
+  [source]="source"
+  [columns]="columns"
+  [filters]="filters"
+  [pageSizeOptions]="pageSizeOptions"
+  [defaultSort]="defaultSort"
+  searchPlaceholder="Nome da categoria"
+  errorTitle="Não foi possível carregar as categorias"
+  emptyMessage="Nenhuma categoria encontrada com esses filtros."
+>
+  <app-list-table-options-filter
+    class="status-field"
+    label="Situação"
+    [allLabel]="allStatusesLabel"
+    [filter]="filters.status"
+    [options]="statuses"
+    [optionLabel]="statusLabel"
+  />
+
+  <ng-template [uiCell]="column.name" let-name>
+    <span class="name">{{ name }}</span>
+  </ng-template>
+  <ng-template [uiCell]="column.productCount" let-count>
+    <span class="amount">{{ count }}</span>
+  </ng-template>
+  <ng-template [uiCell]="column.supplierCount" let-count>
+    <span class="amount">{{ count }}</span>
+  </ng-template>
+  <ng-template [uiCell]="column.status" let-status>
+    <app-registration-status-badge [status]="status" />
+  </ng-template>
+  <ng-template [uiCell]="column.updatedAt" let-updatedAt>
+    <span class="date">{{ updatedAt | date: 'dd/MM/yyyy HH:mm' : 'UTC' }}</span>
+  </ng-template>
+
+  <ng-template [uiColumnHeader]="column.actions" let-actions>
+    <span class="sr-only">{{ actions.title }}</span>
+  </ng-template>
+  <ng-template [uiCell]="column.actions" let-category="row">
+    <button
+      ui-button
+      variant="ghost"
+      size="icon"
+      type="button"
+      [attr.aria-label]="'Ver ' + category.name"
+      (click)="view(category)"
+    >
+      <ui-icon name="eye" />
+    </button>
+  </ng-template>
+</app-list-table>

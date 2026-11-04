@@ -1,0 +1,27 @@
+<section class="page">
+  <header class="page-title">
+    <h1>Fornecedores e categorias</h1>
+    <p>
+      Busque, consulte e acompanhe o cadastro de fornecedores e das categorias que eles atendem.
+    </p>
+  </header>
+
+  <!-- Own wrapper: the empty <router-outlet> would add one more gap to .page. -->
+  <div class="tabbed">
+    <nav ui-tabs aria-label="Cadastros">
+      @for (tab of tabs; track tab.label) {
+        <a
+          ui-tab
+          [routerLink]="tab.link"
+          routerLinkActive
+          ariaCurrentWhenActive="page"
+          [routerLinkActiveOptions]="{ exact: tab.exact }"
+        >
+          {{ tab.label }}
+        </a>
+      }
+    </nav>
+
+    <router-outlet />
+  </div>
+</section>

@@ -11,7 +11,7 @@ import { uniqueId } from '../../utils/unique-id.utils';
   imports: [UiIcon, UiInputGroupImports, UiLabel],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <label ui-label [for]="id">{{ label() }}</label>
+    <label ui-label [for]="id" [class.sr-only]="hideLabel()">{{ label() }}</label>
     <div ui-input-group>
       <span ui-input-group-addon>
         <ui-icon [name]="icon" />
@@ -39,6 +39,8 @@ export class ListTableSearch {
   readonly text = input.required<string>();
   readonly label = input.required<string>();
   readonly placeholder = input.required<string>();
+  /** Keeps the label only for screen readers (the icon and placeholder say what it is). */
+  readonly hideLabel = input(false);
   readonly textChange = output<string>();
 
   protected readonly id = uniqueId('list-table-search');

@@ -1,6 +1,52 @@
-<section class="page">
-  <header class="page-title">
-    <h1>Fornecedores</h1>
-    <p>Cadastro dos fornecedores do supermercado.</p>
-  </header>
-</section>
+<app-list-table
+  variant="card"
+  heading="Fornecedores"
+  [source]="source"
+  [columns]="columns"
+  [filters]="filters"
+  [pageSizeOptions]="pageSizeOptions"
+  [defaultSort]="defaultSort"
+  searchPlaceholder="Fornecedor, CNPJ ou cidade"
+  errorTitle="Não foi possível carregar os fornecedores"
+  emptyMessage="Nenhum fornecedor encontrado com esses filtros."
+>
+  <!-- Specific filter (child): search, "Limpar", sorting and pagination are built in. -->
+  <app-list-table-options-filter
+    class="status-field"
+    label="Situação"
+    [allLabel]="allStatusesLabel"
+    [filter]="filters.status"
+    [options]="statuses"
+    [optionLabel]="statusLabel"
+  />
+
+  <ng-template [uiCell]="column.name" let-name let-supplier="row">
+    <span class="name">
+      {{ name }}
+      <span class="document">{{ supplier.document }}</span>
+    </span>
+  </ng-template>
+  <ng-template [uiCell]="column.status" let-status>
+    <app-registration-status-badge [status]="status" />
+  </ng-template>
+  <ng-template [uiCell]="column.updatedAt" let-updatedAt>
+    <span class="date">{{ updatedAt | date: 'dd/MM/yyyy HH:mm' : 'UTC' }}</span>
+  </ng-template>
+
+  <!-- Actions: title only for screen readers; the cell gets the whole row. -->
+  <ng-template [uiColumnHeader]="column.actions" let-actions>
+    <span class="sr-only">{{ actions.title }}</span>
+  </ng-template>
+  <ng-template [uiCell]="column.actions" let-supplier="row">
+    <button
+      ui-button
+      variant="ghost"
+      size="icon"
+      type="button"
+      [attr.aria-label]="'Ver ' + supplier.name"
+      (click)="view(supplier)"
+    >
+      <ui-icon name="eye" />
+    </button>
+  </ng-template>
+</app-list-table>

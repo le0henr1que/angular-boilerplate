@@ -26,6 +26,8 @@ export const DEFAULT_LIST_TABLE_CONFIG: ListTableConfig = {
     search: 'Pesquisar',
     searchPlaceholder: 'Pesquisar…',
     clear: 'Limpar',
+    filters: 'Filtros',
+    activeFilters: (count) => `${count} filtro(s) ativo(s)`,
     pageSize: 'Itens por página',
     refreshing: 'Atualizando…',
     empty: 'Nenhum registro encontrado.',
@@ -45,6 +47,7 @@ export const NO_FILTERS = {};
 /** Icons of the list-table's built-in parts. */
 export const LIST_TABLE_ICON = {
   error: 'circle-alert',
+  filters: 'filter',
   search: 'search',
   unsorted: 'arrow-up-down',
 } as const satisfies Record<string, IconName>;

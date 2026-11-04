@@ -1,67 +1,130 @@
 import { ChangeDetectionStrategy, Component, computed, input, output } from '@angular/core';
 import { UiButton } from '@supermercado/ui/button';
 import { UiIcon } from '@supermercado/ui/icon';
-import { ELLIPSIS } from './ui-pagination.constants';
+import { ELLIPSIS, FIRST_PAGE } from './ui-pagination.constants';
+import { type PaginationVariant } from './ui-pagination.types';
 import { visiblePages } from './ui-pagination.utils';
 
 /**
  * Navigation between pages. Keeps no state: receives the current page and reports the chosen one.
  *
  *   <ui-pagination [page]="page()" [totalPages]="total()" (pageChange)="goTo($event)" />
+ *
+ * variant="compact": first / previous / "Página 2 de 5" / next / last, for tight footers.
  */
 @Component({
   selector: 'ui-pagination',
   imports: [UiButton, UiIcon],
   template: `
     <nav [attr.aria-label]="label()">
-      <ul class="list">
-        <li>
-          <button
-            ui-button
-            variant="ghost"
-            size="sm"
-            type="button"
-            [disabled]="page() <= 1"
-            (click)="pageChange.emit(page() - 1)"
-          >
-            <ui-icon name="chevron-left" />
-            Anterior
-          </button>
-        </li>
-        @for (item of items(); track $index) {
+      @if (compact()) {
+        <ul class="list">
           <li>
-            @if (item === ellipsis) {
-              <span class="ellipsis" aria-hidden="true">…</span>
-            } @else {
-              <button
-                ui-button
-                size="sm"
-                type="button"
-                class="number"
-                [variant]="item === page() ? 'outline' : 'ghost'"
-                [attr.aria-current]="item === page() ? 'page' : null"
-                [attr.aria-label]="'Página ' + item"
-                (click)="item !== page() && pageChange.emit(item)"
-              >
-                {{ item }}
-              </button>
-            }
+            <button
+              ui-button
+              variant="ghost"
+              size="icon"
+              type="button"
+              aria-label="Primeira página"
+              [disabled]="isFirst()"
+              (click)="pageChange.emit(firstPage)"
+            >
+              <ui-icon name="chevrons-left" />
+            </button>
           </li>
-        }
-        <li>
-          <button
-            ui-button
-            variant="ghost"
-            size="sm"
-            type="button"
-            [disabled]="page() >= totalPages()"
-            (click)="pageChange.emit(page() + 1)"
-          >
-            Próxima
-            <ui-icon name="chevron-right" />
-          </button>
-        </li>
-      </ul>
+          <li>
+            <button
+              ui-button
+              variant="ghost"
+              size="icon"
+              type="button"
+              aria-label="Página anterior"
+              [disabled]="isFirst()"
+              (click)="pageChange.emit(page() - 1)"
+            >
+              <ui-icon name="chevron-left" />
+            </button>
+          </li>
+          <li class="position" aria-live="polite">
+            Página <strong>{{ page() }}</strong> de <strong>{{ lastPage() }}</strong>
+          </li>
+          <li>
+            <button
+              ui-button
+              variant="ghost"
+              size="icon"
+              type="button"
+              aria-label="Próxima página"
+              [disabled]="isLast()"
+              (click)="pageChange.emit(page() + 1)"
+            >
+              <ui-icon name="chevron-right" />
+            </button>
+          </li>
+          <li>
+            <button
+              ui-button
+              variant="ghost"
+              size="icon"
+              type="button"
+              aria-label="Última página"
+              [disabled]="isLast()"
+              (click)="pageChange.emit(lastPage())"
+            >
+              <ui-icon name="chevrons-right" />
+            </button>
+          </li>
+        </ul>
+      } @else {
+        <ul class="list">
+          <li>
+            <button
+              ui-button
+              variant="ghost"
+              size="sm"
+              type="button"
+              [disabled]="isFirst()"
+              (click)="pageChange.emit(page() - 1)"
+            >
+              <ui-icon name="chevron-left" />
+              Anterior
+            </button>
+          </li>
+          @for (item of items(); track $index) {
+            <li>
+              @if (item === ellipsis) {
+                <span class="ellipsis" aria-hidden="true">…</span>
+              } @else {
+                <button
+                  ui-button
+                  size="sm"
+                  type="button"
+                  class="number"
+                  [variant]="item === page() ? 'outline' : 'ghost'"
+                  [attr.aria-current]="item === page() ? 'page' : null"
+                  [attr.aria-label]="'Página ' + item"
+                  (click)="item !== page() && pageChange.emit(item)"
+                >
+                  {{ item }}
+                </button>
+              }
+            </li>
+          }
+          <li>
+            <button
+              ui-button
+              variant="ghost"
+              size="sm"
+              type="button"
+              [disabled]="isLast()"
+              (click)="pageChange.emit(page() + 1)"
+            >
+              Próxima
+              <ui-icon name="chevron-right" />
+            </button>
+          </li>
+        </ul>
+      }
     </nav>
   `,
   styles: `
@@ -87,18 +150,36 @@ import { visiblePages } from './ui-pagination.utils';
       width: 2.25rem;
       color: var(--muted-foreground);
     }
+    .position {
+      padding: 0 calc(var(--space) * 2);
+      color: var(--muted-foreground);
+      font-size: var(--text-sm);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+    .position strong {
+      color: var(--foreground);
+      font-weight: 500;
+    }
   `,
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class UiPagination {
   readonly page = input.required<number>();
   readonly totalPages = input.required<number>();
-  /** How many pages to show on each side of the current one. */
+  /** How many pages to show on each side of the current one (numbered variant). */
   readonly siblings = input(1);
+  readonly variant = input<PaginationVariant>('numbered');
   readonly label = input('Paginação');
   readonly pageChange = output<number>();
 
   protected readonly ellipsis = ELLIPSIS;
+  protected readonly firstPage = FIRST_PAGE;
+  protected readonly compact = computed(() => this.variant() === 'compact');
+  /** An empty result still reads "Página 1 de 1". */
+  protected readonly lastPage = computed(() => Math.max(FIRST_PAGE, this.totalPages()));
+  protected readonly isFirst = computed(() => this.page() <= FIRST_PAGE);
+  protected readonly isLast = computed(() => this.page() >= this.lastPage());
   protected readonly items = computed(() =>
     visiblePages(this.page(), this.totalPages(), this.siblings()),
   );
